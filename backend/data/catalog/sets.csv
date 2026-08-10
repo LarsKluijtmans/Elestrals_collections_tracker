@@ -1,0 +1,10 @@
+# Set registry for the curated CSV seed. See README.md and adr-001-catalog-data-source.md.
+#
+# card_count is the PRINTED set size — the completion denominator. It is declared here and
+# never derived from how many rows an import managed to write, so an incomplete catalog
+# reports "40 of 126" rather than a silent 100%.
+#
+# Add a set here first, then compile its {SET_CODE}.csv. A declared set with no card file
+# imports cleanly and reports 0/card_count coverage as a warning — that is the guard working.
+set_code,name,series,released_on,card_count,logo_asset_url
+FE01,Base,First Edition,,126,
