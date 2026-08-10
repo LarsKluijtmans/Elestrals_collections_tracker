@@ -1,0 +1,30 @@
+# --- Secrets -----------------------------------------------------------------
+# .env holds the M2M client secret. It must never be committed; .env.example is the
+# tracked contract.
+.env
+.env.*
+!.env.example
+
+# --- Python ------------------------------------------------------------------
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Node --------------------------------------------------------------------
+node_modules/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# --- Editors / OS -------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Local logs ----------------------------------------------------------------
+*.log
