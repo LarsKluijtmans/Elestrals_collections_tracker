@@ -78,6 +78,43 @@ class CatalogImportRepository:
             stmt = stmt.where(CatalogImport.source == source)
         return int(self._db.scalar(stmt) or 0)
 
+    def latest_per_source(self) -> list[CatalogImport]:
+        """The most recent run for each source that has ever run, in one query."""
+        latest = (
+            select(
+                CatalogImport.source.label("source"),
+                func.max(CatalogImport.started_at).label("started_at"),
+            )
+            .group_by(CatalogImport.source)
+            .subquery()
+        )
+        return list(
+            self._db.scalars(
+                select(CatalogImport).join(
+                    latest,
+                    (CatalogImport.source == latest.c.source)
+                    & (CatalogImport.started_at == latest.c.started_at),
+                )
+            )
+        )
+
+    def rejection_rollup(self, run_id: str) -> list[tuple[str, int, str]]:
+        """`(reason_code, count, example_source_ref)`.
+
+        Grouped so an operator reads "83 × unknown_rarity" rather than scrolling 83 rows.
+        """
+        rows = self._db.execute(
+            select(
+                ImportRejection.reason_code,
+                func.count(ImportRejection.id),
+                func.min(ImportRejection.source_ref),
+            )
+            .where(ImportRejection.import_id == run_id)
+            .group_by(ImportRejection.reason_code)
+            .order_by(func.count(ImportRejection.id).desc())
+        ).all()
+        return [(row[0], int(row[1]), row[2]) for row in rows]
+
     def rejections_for(
         self, run_id: str, *, limit: int = 100, offset: int = 0
     ) -> list[ImportRejection]:

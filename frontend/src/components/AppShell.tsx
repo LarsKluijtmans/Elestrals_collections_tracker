@@ -38,15 +38,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   const current = useLocation().pathname;
   const wide = useMediaQuery(theme.breakpoints.up("lg"));      // >= 1280
   const compact = useMediaQuery(theme.breakpoints.down("md")); // < 900
-  const { logout } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
   const { user } = useUser();
   const { brandingAvailable } = useBranding();
 
   const railWidth = wide ? RAIL_FULL : RAIL_ICON;
 
+  // The shell renders for anonymous visitors too, so the rail shows only what they can
+  // actually reach. Listing Collection and Wishlist to someone signed out is an invitation
+  // to a sign-in wall, not navigation.
+  const visibleRoutes = isAuthenticated
+    ? NAV_ROUTES
+    : NAV_ROUTES.filter((r) => r.auth === "public");
+
   const nav = (
     <List sx={{ py: 2 }}>
-      {NAV_ROUTES.map((r) => {
+      {visibleRoutes.map((r) => {
         const active = current === r.path;
         const item = (
           <ListItemButton
@@ -115,12 +122,20 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Tooltip>
             )}
             <LanguageSwitcher />
-            <Tooltip title={user?.email ?? "Account"}>
-              <Avatar sx={{ width: 28, height: 28, fontSize: 13 }}>
-                {(user?.email ?? "?").slice(0, 1).toUpperCase()}
-              </Avatar>
-            </Tooltip>
-            <Button size="small" onClick={logout}>Sign out</Button>
+            {isAuthenticated ? (
+              <>
+                <Tooltip title={user?.email ?? "Account"}>
+                  <Avatar sx={{ width: 28, height: 28, fontSize: 13 }}>
+                    {(user?.email ?? "?").slice(0, 1).toUpperCase()}
+                  </Avatar>
+                </Tooltip>
+                <Button size="small" onClick={logout}>Sign out</Button>
+              </>
+            ) : (
+              <Button size="small" component={RouterLink} to="/dashboard">
+                Sign in
+              </Button>
+            )}
           </Toolbar>
         </AppBar>
 
@@ -135,7 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             sx={{ position: "sticky", bottom: 0, borderTop: `1px solid ${theme.palette.divider}` }}
           >
             <Stack direction="row" sx={{ justifyContent: "space-around", py: 1 }}>
-              {NAV_ROUTES.slice(0, 5).map((r) => (
+              {visibleRoutes.slice(0, 5).map((r) => (
                 <Tooltip key={r.path} title={r.label}>
                   <ListItemButton
                     component={RouterLink}

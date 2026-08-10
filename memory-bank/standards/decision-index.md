@@ -1,6 +1,6 @@
 ---
-last_updated: 2026-08-10T12:55:00Z
-total_decisions: 1
+last_updated: 2026-08-10T15:20:00Z
+total_decisions: 2
 ---
 
 # Decision Index
@@ -17,6 +17,14 @@ Use this to find relevant prior decisions when working on related features.
 ---
 
 ## Decisions
+
+### ADR-002: Card search — tiered SQL scan, not FULLTEXT
+- **Status**: accepted
+- **Date**: 2026-08-10
+- **Bolt**: 003-card-catalog-surface (002-card-catalog)
+- **Path**: `bolts/003-card-catalog-surface/adr-002-search-implementation.md`
+- **Summary**: Story 010 needs ranked search under 150ms p95 with an explicit, totally-ordered tier ranking that bolt 005's keyboard add-flow can safely commit against; at ~5,000 cards a direct query with a `CASE` tier expression sits two orders of magnitude inside the budget. FULLTEXT was rejected because its default minimum token size of 3 silently breaks two-character searches and its relevance score competes with the required tier order, and a token table was deferred because it buys performance we do not need at the price of a projection that can go stale.
+- **Read when**: card search, ranking, relevance, `MatchKind`, search performance, FULLTEXT, autocomplete, the fast-add keyboard flow, or any question about why search is a plain query rather than an index.
 
 ### ADR-001: Catalog source of truth — curated seed, not a scraped source
 - **Status**: accepted

@@ -47,6 +47,9 @@ class Card(Base, UuidPrimaryKeyMixin, TimestampMixin):
     printings = relationship(
         "Printing", back_populates="card", cascade="all, delete-orphan", lazy="selectin"
     )
+    # `selectin`, not `joined`: a page of search results loads its sets in one extra query
+    # rather than one per row.
+    set = relationship("Set", lazy="selectin")
 
     __table_args__ = (
         UniqueConstraint("set_id", "collector_number", name="uq_cards_set_number"),

@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import settings
-from .controllers import admin_catalog, events, health, me
+from .controllers import admin_catalog, catalog, events, health, me
 from .core.redaction import redact
 from .core.scope_check import assert_m2m_scopes
 from .middleware.request_logging import RequestLoggingMiddleware
@@ -90,4 +90,5 @@ def _default_code(status_code: int) -> str:
 app.include_router(health.router)
 app.include_router(me.router)
 app.include_router(events.router)
+app.include_router(catalog.router)
 app.include_router(admin_catalog.router)

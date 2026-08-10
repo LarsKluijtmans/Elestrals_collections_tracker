@@ -28,6 +28,18 @@ class PrintingRepository:
             )
         )
 
+    def list_for_cards(self, card_ids: list[str]) -> dict[str, list[Printing]]:
+        """Batched: a 50-row search page costs two queries, not fifty-one."""
+        if not card_ids:
+            return {}
+        rows = self._db.scalars(
+            select(Printing).where(Printing.card_id.in_(card_ids))
+        )
+        grouped: dict[str, list[Printing]] = {card_id: [] for card_id in card_ids}
+        for printing in rows:
+            grouped.setdefault(printing.card_id, []).append(printing)
+        return grouped
+
     def list_for_set(self, set_id: str) -> list[Printing]:
         return list(
             self._db.scalars(

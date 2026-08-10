@@ -3,7 +3,7 @@ id: 003-card-catalog-surface
 unit: 002-card-catalog
 intent: 001-collection-tracker
 type: ddd-construction-bolt
-status: planned
+status: in-progress
 stories:
   - 010-card-search
   - 011-set-browser
@@ -55,10 +55,30 @@ An operator can see whether the catalog is healthy.
 
 ## Stages
 
-- [ ] **1. model**: Pending → ddd-01-domain-model.md
-- [ ] **2. design**: Pending → ddd-02-technical-design.md
-- [ ] **3. implement**: Pending → `backend/app/controllers/catalog.py`, `frontend/src/pages/`
-- [ ] **4. test**: Pending → ddd-03-test-report.md
+- ✅ **1. model**: Complete → `ddd-01-domain-model.md`
+
+  No new entities and no new aggregates — this is the read side of bolt 002's context.
+  13 value objects (read models), 5 domain services, repository additions only.
+  **Human checkpoint — approve before Stage 2.**
+
+- ✅ **2. design**: Complete → `ddd-02-technical-design.md`
+
+  Six ranking tiers, plain indexed SQL over FULLTEXT with a written revisit trigger,
+  `/sets` kept anonymous and cacheable, and the keyboard contract bolt 005 will consume.
+  Corrects a Stage 1 imprecision: the "Teratlas" example was an infix match, not a word
+  prefix — they are now separate tiers. **Human checkpoint — approve before Stage 3/4.**
+
+- ✅ **3. ADR analysis**: Complete → `adr-002-search-implementation.md` (indexed as ADR-002)
+
+- ✅ **4. implement**: Complete → 5 endpoints, 5 services, `core/pagination.py`,
+  5 frontend components, 4 pages. `Gate` restructured so the public pages work signed out.
+
+- ⏳ **5. test**: **Partial** → `ddd-03-test-report.md`
+
+  119 backend tests (46 new, 97% on bolt-003 modules) · 12 frontend tests · typecheck clean ·
+  build passes. The keyboard contract bolt 005 consumes is pinned.
+  **Not met:** the < 150ms p95 target is unmeasurable — no MySQL, and the catalog has no data.
+  **Not verified:** MySQL collation/ordering, browser rendering, a full WCAG audit.
 
 ## Dependencies
 

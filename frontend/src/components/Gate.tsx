@@ -1,26 +1,34 @@
 import { useAuth } from "@lars-kluijtmans/react-auth";
 import { LoginForm } from "@lars-kluijtmans/react-login";
 import { Box, CircularProgress } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { registerTokenGetter } from "../api/backend";
 import { authConfig } from "../authConfig";
 import { useBranding } from "../branding/BrandingThemeProvider";
+import { AdminCatalogPage } from "../pages/AdminCatalog";
+import { CardDetailPage } from "../pages/CardDetail";
 import { DashboardPage } from "../pages/Dashboard";
 import {
   AddCardsPage, CollectionPage, ImportExportPage, NotFoundPage,
-  Placeholder, SealedPage, SetsPage, WishlistPage,
+  Placeholder, SealedPage, WishlistPage,
 } from "../pages/Placeholder";
+import { SetDetailPage } from "../pages/SetDetail";
+import { SetsPage } from "../pages/Sets";
 import { AppShell } from "./AppShell";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { PlatformUnavailable } from "./PlatformUnavailable";
 
 // Auth state decides what renders: a spinner while resolving, the "platform unavailable"
-// screen if login-api cannot be reached at all, the embedded <LoginForm> when signed out,
-// and the routed app shell when signed in.
+// screen if login-api cannot be reached at all, and otherwise the routed app shell.
 //
-// Because login is embedded rather than a redirect, the URL is untouched throughout — so
-// pasting a deep link, signing in, and landing on that page works with no return-path state.
+// The shell renders for **anonymous visitors too**. `/sets`, `/sets/:code` and `/cards/:id`
+// are public (api-conventions.md), and story 010–012 require them to work signed out — so
+// the login form is scoped to the routes that actually need a session, not hoisted over the
+// whole application.
+//
+// Because login is embedded rather than a redirect, the URL is untouched throughout: pasting
+// a deep link, signing in, and landing on that page works with no return-path state.
 export function Gate() {
   const { isAuthenticated, isLoading, completeLogin, getAccessToken } = useAuth();
   const { branding } = useBranding();
@@ -43,21 +51,9 @@ export function Gate() {
     };
   }, []);
 
-  if (isLoading || reachable === null) {
+  function SignInPrompt() {
     return (
-      <Box sx={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (!reachable && !isAuthenticated) {
-    return <PlatformUnavailable onRetry={() => window.location.reload()} />;
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <Box sx={{ display: "grid", placeItems: "center", minHeight: "100vh", p: 4 }}>
+      <Box sx={{ display: "grid", placeItems: "center", minHeight: "60vh", p: 4 }}>
         <Box sx={{ width: "100%", maxWidth: 420 }}>
           <LoginForm
             config={authConfig}
@@ -70,26 +66,55 @@ export function Gate() {
     );
   }
 
+  /** Wraps a route that needs a session. Renders the embedded form in place, so the URL —
+   *  and therefore the deep link — survives sign-in untouched. */
+  function RequireAuth({ children }: { children: ReactNode }) {
+    return isAuthenticated ? <>{children}</> : <SignInPrompt />;
+  }
+
+  if (isLoading || reachable === null) {
+    return (
+      <Box sx={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!reachable && !isAuthenticated) {
+    return <PlatformUnavailable onRetry={() => window.location.reload()} />;
+  }
+
   return (
     <AppShell>
       <ErrorBoundary>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/collection" element={<CollectionPage />} />
-          <Route path="/collection/add" element={<AddCardsPage />} />
-          <Route path="/collection/add/set/:setCode" element={<AddCardsPage />} />
+          <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/sets"} replace />} />
+
+          {/* Public — no session required. */}
           <Route path="/sets" element={<SetsPage />} />
-          <Route path="/sets/:code" element={<SetsPage />} />
-          <Route path="/cards/:id" element={<Placeholder title="Card" bolt="bolt 003" />} />
-          <Route path="/sealed" element={<SealedPage />} />
-          <Route path="/wishlist" element={<WishlistPage />} />
-          <Route path="/import-export" element={<ImportExportPage />} />
-          <Route path="/settings/profile" element={<DashboardPage />} />
+          <Route path="/sets/:code" element={<SetDetailPage />} />
+          <Route path="/cards/:id" element={<CardDetailPage />} />
+
+          {/* Authenticated. */}
+          <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+          <Route path="/collection" element={<RequireAuth><CollectionPage /></RequireAuth>} />
+          <Route path="/collection/add" element={<RequireAuth><AddCardsPage /></RequireAuth>} />
+          <Route
+            path="/collection/add/set/:setCode"
+            element={<RequireAuth><AddCardsPage /></RequireAuth>}
+          />
+          <Route path="/sealed" element={<RequireAuth><SealedPage /></RequireAuth>} />
+          <Route path="/wishlist" element={<RequireAuth><WishlistPage /></RequireAuth>} />
+          <Route path="/import-export" element={<RequireAuth><ImportExportPage /></RequireAuth>} />
+          <Route path="/settings/profile" element={<RequireAuth><DashboardPage /></RequireAuth>} />
           <Route
             path="/settings/notifications"
-            element={<Placeholder title="Notifications" bolt="bolt 009" />}
+            element={<RequireAuth><Placeholder title="Notifications" bolt="bolt 009" /></RequireAuth>}
           />
+
+          {/* Operator. The API is the real guard — this only avoids showing an empty shell. */}
+          <Route path="/admin/catalog" element={<RequireAuth><AdminCatalogPage /></RequireAuth>} />
+
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </ErrorBoundary>

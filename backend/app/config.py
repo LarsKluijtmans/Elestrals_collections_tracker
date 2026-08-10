@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     operator_scope: str = "elestrals:operator"
     operator_subs: str = ""  # comma-separated JWT subs, for local development
 
+    # --- Catalog health ---------------------------------------------------------
+    # What counts as a stale catalog. Configuration, not a constant in a template: "stale"
+    # for a hand-maintained CSV seed is not "stale" for a nightly scraper.
+    catalog_ageing_after_hours: float = 48
+    catalog_stale_after_hours: float = 168  # 7 days
+
+    # Public catalog responses are cacheable because they never vary on the caller.
+    catalog_cache_seconds: int = 300
+
     # Comma-separated browser origins allowed to call this API (CORS).
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 

@@ -1,7 +1,7 @@
 """Pydantic request/response models at the API boundary."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -116,3 +116,138 @@ class StartImportRequest(BaseModel):
     source: str = Field(default="csv_seed", max_length=48)
     #: Omit for every set the source declares.
     set_codes: list[str] | None = Field(default=None, max_length=64)
+
+
+# --- Catalog read surface (bolt 003, stories 010-012) --------------------------------
+#
+# These are read models, not the write schema with fields renamed. They are what a screen
+# needs; keeping them separate is what lets the catalog tables change without breaking a
+# public contract that is cached for five minutes at a time.
+
+class PrintingView(BaseModel):
+    printing_id: str
+    rarity: str
+    finish: str
+    language: str
+    edition: str
+    image_url: str | None
+    #: `"{name} — {set} {rarity}"`, generated centrally. ux-guide §9, binding.
+    alt_text: str
+
+
+class CardSearchResult(BaseModel):
+    card_id: str
+    name: str
+    set_code: str
+    collector_number: str
+    card_type: str
+    element: str | None
+    primary_printing: PrintingView | None
+    printing_count: int
+    #: *Why* this row matched. On the wire so a test can assert the reason rather than pin an
+    #: opaque position, and so the UI can explain a surprising hit.
+    match_kind: Literal[
+        "exact_name", "name_prefix", "word_prefix", "collector_number", "set_code", "infix"
+    ]
+
+
+class PagedCardSearch(BaseModel):
+    items: list[CardSearchResult]
+    next_cursor: str | None
+    total: int
+
+
+class CardDetailResponse(BaseModel):
+    card_id: str
+    name: str
+    set_code: str
+    set_name: str
+    collector_number: str
+    card_type: str
+    element: str | None
+    rune_type: str | None
+    subtype: str | None
+    attack: int | None
+    defence: int | None
+    spirit_cost: dict[str, int] | None
+    rules_text: str | None
+    flavour_text: str | None
+    artist: str | None
+    #: Every printing, never a filtered subset.
+    printings: list[PrintingView]
+
+
+class SetSummary(BaseModel):
+    """User-agnostic by construction — there is deliberately no completion field.
+
+    `/sets` is public and cacheable, and `api-conventions.md` requires public reads never to
+    vary on the caller. Completion is per-user, so it is fetched separately and merged in the
+    client; putting it here would make a shared cache serve one collector's data to another.
+    """
+    code: str
+    name: str
+    series: str | None
+    released_on: date | None
+    #: The declared printed size — the completion denominator.
+    card_count: int
+    #: How many we have actually imported. Below `card_count` means an incomplete catalog.
+    imported_count: int
+    logo_asset_url: str | None
+
+
+class SetListResponse(BaseModel):
+    items: list[SetSummary]
+
+
+class SetChecklistEntry(BaseModel):
+    card_id: str
+    collector_number: str
+    name: str
+    element: str | None
+    card_type: str
+    printings: list[PrintingView]
+
+
+class SetChecklistResponse(BaseModel):
+    set: SetSummary
+    items: list[SetChecklistEntry]
+    next_cursor: str | None
+    total: int
+
+
+class StalenessModel(BaseModel):
+    last_success_at: datetime | None
+    age_hours: float | None
+    #: `never_run` is a first-class state, not a null to be interpreted at the call site.
+    state: Literal["fresh", "ageing", "stale", "never_run"]
+
+
+class SourceHealth(BaseModel):
+    source: str
+    display_name: str
+    requires_network: bool
+    last_run_id: str | None
+    last_status: str | None
+    last_started_at: datetime | None
+    staleness: StalenessModel
+
+
+class RejectionRollupModel(BaseModel):
+    reason_code: str
+    count: int
+    example_source_ref: str
+
+
+class SetCoverageModel(BaseModel):
+    set_code: str
+    expected: int
+    imported: int
+    missing_count: int
+
+
+class CatalogHealth(BaseModel):
+    sources: list[SourceHealth]
+    #: Sets whose imported count is short of the declared printed size.
+    sets_below_coverage: list[SetCoverageModel]
+    latest_run_id: str | None
+    rejections: list[RejectionRollupModel]

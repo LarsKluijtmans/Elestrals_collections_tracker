@@ -14,6 +14,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, R
 
 from ..core.db import SessionLocal
 from ..core.dependencies import (
+    catalog_health_service,
     catalog_import_repository,
     coverage_service,
     make_import_runner,
@@ -23,6 +24,7 @@ from ..importer.sources import UnknownSource, get_source
 from ..models.catalog_import import CatalogImport
 from ..repositories.catalog_import_repository import CatalogImportRepository
 from ..schemas import (
+    CatalogHealth,
     CoverageModel,
     ErrorResponse,
     ImportCountsModel,
@@ -33,6 +35,7 @@ from ..schemas import (
     RejectionModel,
     StartImportRequest,
 )
+from ..services.catalog_health_service import CatalogHealthService
 from ..services.coverage_service import CoverageService
 from ..services.logging_service import log_event
 
@@ -149,6 +152,19 @@ def get_import(
             total=total,
         ),
     )
+
+
+@router.get(
+    "/health",
+    response_model=CatalogHealth,
+    summary="Catalog health: source staleness, coverage shortfalls, rejections",
+)
+def get_health(
+    _: object = Depends(require_operator),
+    svc: CatalogHealthService = Depends(catalog_health_service),
+) -> CatalogHealth:
+    """Story 034's payload in one shape: can an operator trust what the catalog says?"""
+    return svc.health()
 
 
 @router.post(
