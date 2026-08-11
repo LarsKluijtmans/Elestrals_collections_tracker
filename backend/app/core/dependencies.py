@@ -9,7 +9,9 @@ from ..config import settings
 from ..repositories.app_log_repository import AppLogRepository
 from ..repositories.card_repository import CardRepository
 from ..repositories.catalog_import_repository import CatalogImportRepository
+from ..repositories.inventory_repository import InventoryRepository
 from ..repositories.printing_repository import PrintingRepository
+from ..repositories.set_completion_repository import SetCompletionRepository
 from ..repositories.set_repository import SetRepository
 from ..repositories.user_profile_repository import UserProfileRepository
 from ..security import Principal, verify_token
@@ -20,7 +22,9 @@ from ..services.catalog_read_service import (
     SetBrowseService,
 )
 from ..services.catalog_upsert import CatalogUpsert
+from ..services.completion_service import CompletionService
 from ..services.coverage_service import CoverageService
+from ..services.inventory_service import InventoryService
 from ..services.import_runner import ImportRunner
 from ..services.profile_service import ProfileService
 from .db import get_db
@@ -118,6 +122,29 @@ def catalog_health_service(
     cards: CardRepository = Depends(card_repository),
 ) -> CatalogHealthService:
     return CatalogHealthService(imports, sets, cards)
+
+
+def inventory_repository(db: Session = Depends(get_db)) -> InventoryRepository:
+    return InventoryRepository(db)
+
+
+def set_completion_repository(db: Session = Depends(get_db)) -> SetCompletionRepository:
+    return SetCompletionRepository(db)
+
+
+def completion_service(
+    completion: SetCompletionRepository = Depends(set_completion_repository),
+    sets: SetRepository = Depends(set_repository),
+) -> CompletionService:
+    return CompletionService(completion, sets)
+
+
+def inventory_service(
+    items: InventoryRepository = Depends(inventory_repository),
+    printings: PrintingRepository = Depends(printing_repository),
+    completion: CompletionService = Depends(completion_service),
+) -> InventoryService:
+    return InventoryService(items, printings, completion)
 
 
 def make_import_runner(db: Session) -> ImportRunner:

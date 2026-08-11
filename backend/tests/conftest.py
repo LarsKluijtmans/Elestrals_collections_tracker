@@ -21,6 +21,7 @@ from app.models import (  # noqa: F401
     card,
     catalog_import,
     import_rejection,
+    inventory_item,
     printing,
     sealed_product,
     user_profile,
@@ -28,6 +29,7 @@ from app.models import (  # noqa: F401
 from app.models import (  # noqa: F401
     set as set_model,
 )
+from app.models import set_completion  # noqa: F401
 
 _WRITE_PREFIXES = ("INSERT", "UPDATE", "DELETE")
 

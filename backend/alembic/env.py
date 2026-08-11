@@ -21,9 +21,11 @@ from app.models import (  # noqa: F401,E402  (register the tables)
     card,
     catalog_import,
     import_rejection,
+    inventory_item,
     printing,
     sealed_product,
     set as set_model,
+    set_completion,
     user_profile,
 )
 

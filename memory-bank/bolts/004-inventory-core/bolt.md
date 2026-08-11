@@ -3,7 +3,7 @@ id: 004-inventory-core
 unit: 003-inventory-core
 intent: 001-collection-tracker
 type: ddd-construction-bolt
-status: planned
+status: in-progress
 stories:
   - 013-add-inventory-item
   - 014-edit-inventory-item
@@ -59,10 +59,17 @@ enforced in the database and the service layer — not in the UI.
 
 ## Stages
 
-- [ ] **1. model**: Pending → ddd-01-domain-model.md
-- [ ] **2. design**: Pending → ddd-02-technical-design.md
-- [ ] **3. implement**: Pending → `backend/app/{models,repositories,services,controllers}/inventory*`
-- [ ] **4. test**: Pending → ddd-03-test-report.md
+- ✅ **1. model**: Complete → `ddd-01-domain-model.md`
+- ✅ **2. design**: Complete → `ddd-02-technical-design.md`
+- ⏭️ **3. ADR analysis** *(optional)*: skipped — the one weighty decision (the merge
+  discriminator) constrains one table, and is recorded in the design and test report.
+- ✅ **4. implement**: Complete → 2 models, `0003_inventory.py`, 2 repositories, 2 services,
+  5 endpoints
+- ⏳ **5. test**: **Partial** → `ddd-03-test-report.md`
+
+  157 tests pass (38 new) · 92% on bolt-004 modules · concurrent double-add proven with two
+  real threads on two connections. **Not met:** the write p95 < 200ms and recompute < 50ms
+  targets are unmeasured — they need MySQL.
 
 ## Dependencies
 

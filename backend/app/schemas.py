@@ -245,6 +245,90 @@ class SetCoverageModel(BaseModel):
     missing_count: int
 
 
+# --- Inventory (bolt 004, stories 013-015, 023) --------------------------------------
+
+CONDITION = Literal[
+    "mint", "near_mint", "lightly_played", "moderately_played", "heavily_played", "damaged",
+]
+
+
+class InventoryItemResponse(BaseModel):
+    id: str
+    printing_id: str
+    condition: CONDITION
+    quantity: int
+    is_graded: bool
+    grader: str | None
+    grade: float | None
+    acquired_on: date | None
+    acquired_unit_price_cents: int | None
+    acquired_currency: str | None
+    storage_location: str | None
+    notes: str | None
+    is_for_trade: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class AddInventoryRequest(BaseModel):
+    printing_id: str
+    condition: CONDITION = "near_mint"
+    quantity: int = Field(default=1, ge=1, le=10_000)
+    is_graded: bool = False
+    grader: str | None = Field(default=None, max_length=16)
+    grade: float | None = Field(default=None, ge=0, le=10)
+    acquired_on: date | None = None
+    acquired_unit_price_cents: int | None = Field(default=None, ge=0)
+    acquired_currency: str | None = Field(default=None, min_length=3, max_length=3)
+    storage_location: str | None = Field(default=None, max_length=64)
+    notes: str | None = Field(default=None, max_length=512)
+    is_for_trade: bool = False
+
+
+class AddInventoryResponse(BaseModel):
+    item: InventoryItemResponse
+    #: True when the add folded into an existing row rather than creating one. The fast-add
+    #: flow shows this so a collector sees "now 3" instead of wondering where the row went.
+    merged: bool
+
+
+class PatchInventoryRequest(BaseModel):
+    condition: CONDITION | None = None
+    quantity: int | None = Field(default=None, ge=1, le=10_000)
+    is_graded: bool | None = None
+    grader: str | None = Field(default=None, max_length=16)
+    grade: float | None = Field(default=None, ge=0, le=10)
+    acquired_on: date | None = None
+    acquired_unit_price_cents: int | None = Field(default=None, ge=0)
+    acquired_currency: str | None = Field(default=None, min_length=3, max_length=3)
+    storage_location: str | None = Field(default=None, max_length=64)
+    notes: str | None = Field(default=None, max_length=512)
+    is_for_trade: bool | None = None
+
+
+class PagedInventory(BaseModel):
+    items: list[InventoryItemResponse]
+    next_cursor: str | None
+    total: int
+
+
+class SetCompletionModel(BaseModel):
+    set_code: str
+    set_name: str
+    #: Distinct cards owned, over the declared printed size.
+    owned_cards: int
+    card_count: int
+    #: Total copies held — "142 copies across 98 cards".
+    total_quantity: int
+    ratio: float
+
+
+class CompletionResponse(BaseModel):
+    sets: list[SetCompletionModel]
+    total_items: int
+    total_quantity: int
+
+
 class CatalogHealth(BaseModel):
     sources: list[SourceHealth]
     #: Sets whose imported count is short of the declared printed size.

@@ -18,6 +18,9 @@ class SetRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
+    def get(self, set_id: str) -> Set | None:
+        return self._db.get(Set, set_id)
+
     def get_by_code(self, code: str) -> Set | None:
         return self._db.scalar(select(Set).where(Set.code == code))
 
