@@ -96,8 +96,12 @@ UNIQUE `(card_id, rarity, finish, language, edition)`.
 
 ### `catalog_imports`
 Run log for the importer: `id`, `source`, `started_at`, `finished_at`, `status`
-(`running|success|partial|failed`), `sets_seen`, `cards_added`, `cards_updated`, `printings_added`,
-`rejected`, `error_summary TEXT`.
+(`running|success|partial|failed`), `set_codes JSON`, `sets_seen`, `cards_added`, `cards_updated`,
+**`cards_unchanged`**, `printings_added`, `rejected`, `error_summary TEXT`.
+
+`cards_unchanged` is the reported success signal of a re-run: without it "0 added, 0 updated" is
+indistinguishable from "the importer did nothing at all". `cards` and `printings` also carry a
+`content_fingerprint` so an unchanged row issues no SQL — see bolt 002's technical design.
 
 ---
 
@@ -139,9 +143,16 @@ No email, no display name, no avatar — those are enriched from auth-api on rea
 | `is_for_trade` | `BOOL` DEFAULT 0 | seeds phase-3 listings |
 | `created_at` / `updated_at` | `DATETIME(6)` | |
 
-UNIQUE `(user_sub, printing_id, condition, is_graded, grader, grade)` for the ungraded common case —
-adding a duplicate increments `quantity` rather than creating a row. Graded copies are individually
-meaningful, so they are exempt from the merge (enforced in the service, not the constraint).
+**Superseded during bolt 004 — see that bolt's test report.** The key originally specified here,
+`UNIQUE (user_sub, printing_id, condition, is_graded, grader, grade)`, cannot enforce the rule it
+was written for: under it two PSA 9 copies of one printing collide and merge into `quantity 2`,
+destroying the fact that they are two separately serialised objects. A service-layer exemption
+cannot save it, because the constraint fires first.
+
+The shipped schema adds `merge_condition` — the condition for ungraded rows, **NULL for graded
+ones** — and uses UNIQUE `(user_sub, printing_id, merge_condition)`. NULLs are distinct in a
+unique index on both MySQL and SQLite, so graded copies never collide while ungraded ones merge.
+Verified against MySQL 8.4 on 2026-08-11.
 
 INDEX `(user_sub, printing_id)`, `(user_sub, created_at)`.
 
@@ -152,6 +163,14 @@ Same shape against `sealed_products`: `user_sub`, `sealed_product_id`, `quantity
 ### `wishlist_items`
 `id`, `user_sub`, `printing_id`, `desired_quantity`, `max_price_cents` NULL, `priority ENUM('low','normal','high')`, `created_at`.
 UNIQUE `(user_sub, printing_id)`.
+
+### `set_completion` (added in bolt 004)
+Per-user, per-set projection: `id`, `user_sub`, `set_id`, `owned_cards`, `card_count`,
+`total_quantity`. UNIQUE `(user_sub, set_id)`.
+
+`owned_cards` counts distinct **cards** with at least one printing owned, over the set's declared
+`card_count`. Recomputed inside the transaction that changes inventory, so it can never disagree
+with its source.
 
 ### `collection_snapshots` (written from phase 1, *read* from phase 2)
 A nightly row per user so portfolio-over-time has history from day one rather than starting the day

@@ -79,6 +79,19 @@ fits comfortably in memory would be infrastructure as decoration.
 - No typo tolerance. "Teratals" finds nothing. Acceptable for a catalog people search by names
   they are reading off a card in their hand.
 
+## Measured, 2026-08-11
+
+Against the real platform MySQL 8.4 with a synthetic catalog at the projected size — **5,000
+cards / 7,500 printings**:
+
+| | median | p95 | max |
+|---|---|---|---|
+| 3-character prefix search | 25.9ms | **26.9ms** | 28.7ms |
+
+**26.9ms against a 150ms budget**, and against the 100ms revisit trigger below. The estimate
+this ADR was accepted on now has a number behind it, with room to spare. Full import of the same
+catalog took 34.4s against a 15-minute budget.
+
 **Revisit trigger — written down so it is a measurement, not a judgement call**
 
 Move to alternative 2 when **either**:

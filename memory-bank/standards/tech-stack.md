@@ -40,7 +40,7 @@ surface for `/cards/:id` and `/market/:id` only — not a wholesale move to SSR.
 
 | Concern | Choice | Notes |
 |---|---|---|
-| Framework | FastAPI (Python 3.12) | from app-starter, `:9000` |
+| Framework | FastAPI (Python 3.12) | from app-starter. **`:9500` locally** — `:9000` is taken by platform-management-api |
 | Layering | `Controllers → Services → Repositories → SQLAlchemy models → MySQL` | **identical** to every service in `../auth` |
 | ORM | SQLAlchemy 2.x | typed `Mapped[]` style |
 | Migrations | Alembic, single tree | ours alone — we do not touch `alembic_tenant` |
@@ -61,22 +61,29 @@ surface for `/cards/:id` and `/market/:id` only — not a wholesale move to SSR.
 
 ## Data
 
-- **MySQL 8** — the platform's existing instance on `:3306`, in our **own `elestrals` database**.
+- **MySQL 8.4** — the platform's existing instance, published on host **`:9306`** (container
+  `:3306`), in our **own `elestrals` database** with a scoped `elestrals_app` user granted only
+  on `elestrals.*`. The app never uses the platform's `app` or root credentials.
 - Connection string comes from the platform deployment's environment; the app never provisions
   databases (that is tenant-api's job, and we are not a tenant service).
 - Full schema: `standards/data-model.md`.
 
 ## Platform integration
 
-| Concern | Service | How |
-|---|---|---|
-| Sign-in | login-api `:8010` | PKCE via `react-login`; frontend holds only a `client_id` |
-| User enrichment | auth-api `:8050` | backend M2M `users.get`, scope `users:read` |
-| Branding | branding-api `:8080` | anonymous `/resolve`; drives the MUI theme |
-| Notifications | notification-api `:8020` | backend M2M, scopes `notifications:send`, `notifications:configure` |
-| Platform logging | logs-api `:8030` | backend M2M, scope `logs:write` |
-| Usage metering | logs-api `:8030` | backend M2M, scope `usage:write` |
-| User files | storage-api `:8070` | avatars via `react-auth`'s `useStorage`; listing photos likewise, `owned` access |
+> **Ports: container vs host.** The `8xxx` numbers below are the ports each service listens on
+> *inside* its container. The platform's `docker-compose.yml` publishes them on **`9xxx` host
+> ports**, and that is what a client running outside the compose network must dial. Verified
+> against the running stack on 2026-08-11; the mapping comes from `../auth/.env`.
+
+| Concern | Service | Container | **Host** | How |
+|---|---|---|---|---|
+| Sign-in | login-api | `:8010` | **`:9010`** | PKCE via `react-login`; frontend holds only a `client_id` |
+| User enrichment | auth-api | `:8050` | **`:9050`** | backend M2M `users.get`, scope `users:read` |
+| Branding | branding-api | `:8080` | **`:9120`** | anonymous `/resolve`; drives the MUI theme |
+| Notifications | notification-api | `:8020` | **`:9020`** | backend M2M, scopes `notifications:send`, `notifications:configure` |
+| Platform logging | logs-api | `:8030` | **`:9030`** | backend M2M, scope `logs:write` |
+| Usage metering | logs-api | `:8030` | **`:9030`** | backend M2M, scope `usage:write` |
+| User files | storage-api | `:8070` | **`:9070`** | avatars via `react-auth`'s `useStorage`; listing photos likewise, `owned` access |
 
 **Two credential sets, two homes.** The public login `client_id` lives in the frontend. The M2M
 `client_id` + `client_secret` lives **only** in the backend. Never ship the M2M secret to a browser.
@@ -90,7 +97,7 @@ One service account, granted: `users:read`, `logs:write`, `usage:write`, `notifi
 
 | | Frontend | Backend | DB |
 |---|---|---|---|
-| Local | `:5173` | `:9000` | platform MySQL `:3306`, db `elestrals` |
+| Local | `:5173` | `:9500` | platform MySQL `:9306`, db `elestrals` |
 | Prod | static build behind the platform's reverse proxy | container | same MySQL, db `elestrals` |
 
 Deployment follows the platform's `docker-compose.yml` pattern: our two images join the existing

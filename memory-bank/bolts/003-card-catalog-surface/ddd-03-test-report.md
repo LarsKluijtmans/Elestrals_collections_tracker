@@ -77,7 +77,25 @@ pins that.
    rejection history is a drill-down that belongs with the run detail endpoint, which already
    has it.
 
-## Not met
+
+## Verified against real MySQL — 2026-08-11
+
+The platform stack was already running (`../auth/docker-compose.yml`, 19 containers). Migrations
+`0001`–`0003` applied to MySQL 8.4 cleanly, and `backend/scripts/verify_mysql.py` passed **24/24**
+checks against it, `backend/scripts/bench.py` **5/5** NFR budgets. Both are re-runnable and clean
+up after themselves.
+
+What that closes for this bolt is listed below; anything still open stays listed as open.
+
+| Was open | Now |
+|---|---|
+| `3-char prefix < 150ms p95` | ✅ **26.9ms p95** at 5,000 cards — 5.6× inside budget |
+| `CASE` tiering and `coalesce` ordering under MySQL | ✅ exact-name ranks first, order stable across identical queries |
+| Public pages serving anonymously | ✅ `GET /sets` and `/cards` return 200 with no `Authorization` header, `Cache-Control: public`, no `Vary` |
+
+That measurement is also what ADR-002 was accepted without; it is now recorded there.
+
+## Previously not met
 
 **`3-character prefix returns ranked results in < 150ms p95` is NOT verified.** It cannot be:
 the target is "with the full catalog loaded", the catalog has no cards (bolt 002's FE01 seed

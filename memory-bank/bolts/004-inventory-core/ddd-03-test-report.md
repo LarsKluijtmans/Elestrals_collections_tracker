@@ -72,7 +72,28 @@ implementation passes every other test in the file.
 It runs on file-backed SQLite. **MySQL's own `ON DUPLICATE KEY UPDATE` semantics, its locking
 behaviour under contention, and the p95 targets remain unverified** until a server exists.
 
-## Not verified — needs a running database
+
+## Verified against real MySQL — 2026-08-11
+
+The platform stack was already running (`../auth/docker-compose.yml`, 19 containers). Migrations
+`0001`–`0003` applied to MySQL 8.4 cleanly, and `backend/scripts/verify_mysql.py` passed **24/24**
+checks against it, `backend/scripts/bench.py` **5/5** NFR budgets. Both are re-runnable and clean
+up after themselves.
+
+What that closes for this bolt is listed below; anything still open stays listed as open.
+
+| Was open | Now |
+|---|---|
+| Write p95 < 200ms incl. recompute | ✅ **16.1ms** |
+| Recompute < 50ms p95 | ✅ **5.4ms** |
+| MySQL `ON DUPLICATE KEY UPDATE` under contention | ✅ **four** concurrent adds → one row, quantity exactly 4 |
+| Graded copies separate on MySQL | ✅ two identical PSA 9 copies stayed two rows — MySQL treats the NULL `merge_condition` as distinct, as the design depends on |
+| Migration applied rather than generated | ✅ applied; `merge_condition` confirmed `nullable=YES` in `information_schema` |
+
+The `merge_condition` design rested entirely on NULL-distinctness in a MySQL unique index. That
+is now checked rather than assumed.
+
+## Previously not verified — needs a running database
 
 - Write and recompute latency (both targets)
 - MySQL `ON DUPLICATE KEY UPDATE` under real contention

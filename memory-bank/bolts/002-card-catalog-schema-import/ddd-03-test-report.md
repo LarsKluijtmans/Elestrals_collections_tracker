@@ -94,7 +94,27 @@ Closing this criterion needs someone to compile FE01 from cards they own and pub
 checklists. The importer, the schema, the rejection reporting and the idempotency are all
 finished and tested; only the data is outstanding.
 
-## Not verified — requires a running database
+
+## Verified against real MySQL — 2026-08-11
+
+The platform stack was already running (`../auth/docker-compose.yml`, 19 containers). Migrations
+`0001`–`0003` applied to MySQL 8.4 cleanly, and `backend/scripts/verify_mysql.py` passed **24/24**
+checks against it, `backend/scripts/bench.py` **5/5** NFR budgets. Both are re-runnable and clean
+up after themselves.
+
+What that closes for this bolt is listed below; anything still open stays listed as open.
+
+| Was open | Now |
+|---|---|
+| Migration applied to real MySQL | ✅ `alembic upgrade head` clean on MySQL 8.4 |
+| Full re-import < 15 minutes | ✅ **34.4s** for 5,000 cards / 7,500 printings |
+| Idempotency under MySQL's own `ON DUPLICATE KEY UPDATE` | ✅ re-import reported 0 added, 0 updated, 5,000 unchanged |
+| Behaviour under MySQL uniqueness enforcement | ✅ `uq_printings_natural_key` present and enforced |
+
+**Still open:** the FE01 seed has no card rows, so "one *real* set imported" remains unmet. The
+importer itself is now verified end to end against MySQL with synthetic data.
+
+## Previously not verified — requires a running database
 
 | Criterion | Why |
 |---|---|
