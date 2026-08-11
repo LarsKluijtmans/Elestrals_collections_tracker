@@ -1,0 +1,94 @@
+# Elestral Vault — deploy stack.
+#
+# TOPOLOGY: one public hostname. The SPA is served at elestrals.larskluijtmans.com and calls its
+# API at /api/* on that same origin, which nginx proxies to elestrals-api:9000. No CORS in the
+# browser path at all. A second hostname for the API is optional (see the tunnel notes below);
+# the sibling Ligretto deployment abandoned its split-origin api host because that DNS proved
+# unreliable, so this defaults to the arrangement that survived.
+#
+# The stack co-locates on the platform's Docker network (docker-compose.override.yml), so the
+# backend reaches mysql and login-api by internal name and the PLATFORM's cloudflared can route
+# to it. The platform stack must be up — it owns `platform_default`.
+#
+# BUILD (the frontend bundle is built on the host — the react SDKs are unpublished):
+#   powershell -ExecutionPolicy Bypass -File scripts\use-local-sdks.ps1
+#   cd frontend && npm run build && cd ..
+#   docker compose up -d --build
+#
+# Then once, in Cloudflare Zero Trust > tunnel > Public Hostnames:
+#   elestrals.larskluijtmans.com      ->  http://elestrals-web:80
+#   elestrals-api.larskluijtmans.com  ->  http://elestrals-api:9000   (optional)
+name: elestrals
+
+services:
+  elestrals-api:
+    build:
+      context: ./backend
+      additional_contexts:
+        # The platform's Python admin SDK is not on PyPI; it comes from the sibling checkout.
+        adminsdk: ../auth/packages/python/admin-sdk-python
+    image: elestrals-api
+    restart: unless-stopped
+    environment:
+      APP_NAME: elestral-vault
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+
+      # TOKEN_ISSUER must stay the PUBLIC login URL — it is the `iss` the browser's token carries
+      # and we pin it during verification. The call URLs are overridden to internal names by the
+      # co-locate override; the issuer deliberately is not.
+      TOKEN_ISSUER: ${PLATFORM_LOGIN_API_URL:-https://auth.aangifteportal.nl}
+      LOGIN_API_URL: ${PLATFORM_LOGIN_API_URL:-https://auth.aangifteportal.nl}
+      AUTH_API_URL: ${PLATFORM_AUTH_API_URL:-https://auth-api.aangifteportal.nl}
+      LOGS_API_URL: ${PLATFORM_LOGS_API_URL:-https://logs-api.aangifteportal.nl}
+      NOTIFICATIONS_API_URL: ${PLATFORM_NOTIFICATION_API_URL:-https://notify-api.aangifteportal.nl}
+      STORAGE_API_URL: ${PLATFORM_STORAGE_API_URL:-https://storage-api.aangifteportal.nl}
+
+      # Server-side ONLY. Never reaches a browser.
+      M2M_CLIENT_ID: ${M2M_CLIENT_ID:-}
+      M2M_CLIENT_SECRET: ${M2M_CLIENT_SECRET:-}
+
+      # Our own database on the platform's MySQL, reached as mysql:3306 over the shared network.
+      DATABASE_URL: ${DATABASE_URL:-}
+
+      # With the same-origin proxy the browser never makes a cross-origin call, so this matters
+      # only if you also publish the API on its own hostname, or run the dev server against it.
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://elestrals.larskluijtmans.com,http://localhost:5173,http://127.0.0.1:5173}
+
+      LOG_CATEGORY: elestrals
+      OPERATOR_SCOPE: ${OPERATOR_SCOPE:-elestrals:operator}
+      OPERATOR_SUBS: ${OPERATOR_SUBS:-}
+
+      # These stay off until the M2M service account actually holds the seven scopes; the
+      # startup check reports what is missing. Turning them on without the scopes means every
+      # platform call 403s into a swallowed exception.
+      ENABLE_ENRICHMENT: ${ENABLE_ENRICHMENT:-false}
+      ENABLE_PROJECT_LOGGING: ${ENABLE_PROJECT_LOGGING:-false}
+      ENABLE_USAGE_METERING: ${ENABLE_USAGE_METERING:-false}
+    ports:
+      - "${API_DEBUG_PORT:-9520}:9000"   # local debug only; web + tunnel reach it internally
+
+  elestrals-web:
+    build: ./frontend
+    image: elestrals-web
+    restart: unless-stopped
+    depends_on:
+      - elestrals-api
+    ports:
+      - "${WEB_DEBUG_PORT:-9530}:80"     # local debug only; the tunnel maps the hostname to :80
+
+  # --- Public exposure (opt-in: --profile tunnel) ------------------------------------------
+  # Our OWN Cloudflare tunnel connector, separate from the platform's. It shares this stack's
+  # network, so its Public Hostnames target elestrals-web:80 / elestrals-api:9000 by compose
+  # name. Skip this service entirely and add the hostnames to the PLATFORM tunnel instead if
+  # you would rather run one connector — the co-locate override puts us on its network either
+  # way. TUNNEL_TOKEN lives in .env (gitignored).
+  elestrals-cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    # http2 rather than QUIC: QUIC is flaky on many home/ISP networks and drops streams
+    # mid-request, which 502s larger POSTs while small GETs slip through.
+    command: tunnel --no-autoupdate --protocol http2 run --token ${TUNNEL_TOKEN:-}
+    depends_on:
+      - elestrals-web
+      - elestrals-api

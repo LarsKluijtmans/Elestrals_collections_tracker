@@ -3,7 +3,11 @@
 # tracked contract.
 .env
 .env.*
+# Templates are tracked; anything holding real values is not. `.env.production` stays ignored
+# even though every VITE_* in it is public by design — the rule that no .env file is ever
+# committed is worth more than the one exception.
 !.env.example
+!.env.production.example
 
 # --- Python ------------------------------------------------------------------
 .venv/

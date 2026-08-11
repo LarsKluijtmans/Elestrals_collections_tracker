@@ -1,0 +1,10 @@
+# node_modules is never needed: the image copies a host-built dist/.
+node_modules/
+src/
+public/
+.env
+.env.*
+!.env.production
+*.ts
+*.json
+!package.json

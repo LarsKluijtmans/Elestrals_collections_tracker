@@ -1,0 +1,170 @@
+name: 'Publish: elestrals images → ghcr.io'
+
+# Builds and pushes the two deployable images to the GitHub Container Registry, so a host can
+# `docker pull` and run the stack instead of building from source.
+#
+#   ghcr.io/<owner>/elestrals-api      the FastAPI backend
+#   ghcr.io/<owner>/elestrals-web      nginx serving the built SPA
+#
+# Auth: pushes use the built-in GITHUB_TOKEN via `packages: write` — no stored registry secret.
+# The first push auto-creates each package under the owner, linked to this repo and PRIVATE by
+# default; change that per-package in the repo's Packages settings.
+#
+# Triggers & tags (publishing is intentional — deliberately NOT on every push to main, which
+# would rebuild both images per commit and burn Actions minutes):
+#   - push a git tag `vX.Y.Z` -> :X.Y.Z, :X.Y, :latest, :sha-<short>
+#   - manual (workflow_dispatch, optional version) -> :<version>, :latest, :sha-<short>
+#
+# NEITHER image builds from a clean checkout without the sibling `auth` repo: the Python admin
+# SDK is not on PyPI and the react SDKs are not on npm. Both jobs therefore check `auth` out and
+# vendor from it — the same shape as the platform's own `build-contexts: libtenancy=./packages/...`,
+# except our library lives in another repository. Set AUTH_REPO_TOKEN (a PAT with `repo`) if
+# that repo is private. Once the SDKs are published, both bootstrap steps can be deleted.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version_input:
+        description: "Version to publish (e.g. 0.1.0). Blank publishes only :sha-<short>."
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  AUTH_REPO: LarsKluijtmans/auth
+  AUTH_REF: main
+
+jobs:
+  api:
+    name: elestrals-api → ghcr.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the platform (for the unpublished admin SDK)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.AUTH_REPO }}
+          ref: ${{ env.AUTH_REF }}
+          token: ${{ secrets.AUTH_REPO_TOKEN || github.token }}
+          path: _platform
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags & labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # metadata-action lowercases the ref, so a mixed-case owner is fine.
+          images: ghcr.io/${{ github.repository_owner }}/elestrals-api
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=${{ github.event.inputs.version_input }},enable=${{ github.event.inputs.version_input != '' }}
+            type=raw,value=latest,enable=${{ github.event.inputs.version_input != '' }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          # The named context the Dockerfile expects, mirroring `additional_contexts` in compose.
+          build-contexts: adminsdk=./_platform/packages/python/admin-sdk-python
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=elestrals-api
+          cache-to: type=gha,mode=max,scope=elestrals-api
+
+  web:
+    name: elestrals-web → ghcr.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the platform (for the unpublished react SDKs)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.AUTH_REPO }}
+          ref: ${{ env.AUTH_REF }}
+          token: ${{ secrets.AUTH_REPO_TOKEN || github.token }}
+          path: _platform
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Bootstrap platform SDKs
+        run: |
+          for pkg in react-auth react-login; do
+            (cd _platform/packages/react/$pkg && npm install && npm run build)
+          done
+
+      # The image copies a pre-built dist/, so the bundle is built here. Every VITE_* is baked
+      # in now and is public thereafter — there is deliberately no secret among them.
+      - name: Build the SPA
+        working-directory: frontend
+        env:
+          VITE_LOGIN_API_URL: ${{ vars.VITE_LOGIN_API_URL || 'https://auth.aangifteportal.nl' }}
+          VITE_LOGIN_CLIENT_ID: ${{ vars.VITE_LOGIN_CLIENT_ID }}
+          VITE_REDIRECT_URI: ${{ vars.VITE_REDIRECT_URI || 'https://elestrals.larskluijtmans.com/' }}
+          # Empty: the SPA calls /api/* on its own origin and nginx proxies it.
+          VITE_BACKEND_URL: ${{ vars.VITE_BACKEND_URL }}
+        run: |
+          npm install
+          npm install --no-save \
+            ../_platform/packages/react/react-auth \
+            ../_platform/packages/react/react-login
+          npm run build
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags & labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/elestrals-web
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=${{ github.event.inputs.version_input }},enable=${{ github.event.inputs.version_input != '' }}
+            type=raw,value=latest,enable=${{ github.event.inputs.version_input != '' }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=elestrals-web
+          cache-to: type=gha,mode=max,scope=elestrals-web
