@@ -1,6 +1,6 @@
 ---
-last_updated: 2026-08-10T15:20:00Z
-total_decisions: 2
+last_updated: 2026-08-12T22:40:00Z
+total_decisions: 3
 ---
 
 # Decision Index
@@ -17,6 +17,14 @@ Use this to find relevant prior decisions when working on related features.
 ---
 
 ## Decisions
+
+### ADR-003: Price source — a licensed aggregator, because every direct route is closed
+- **Status**: **proposed** — awaiting a human decision, because it costs money
+- **Date**: 2026-08-12
+- **Intent**: 002-price-intelligence (inception spike, before bolt planning)
+- **Path**: `intents/002-price-intelligence/adr-003-price-source.md`
+- **Summary**: FR-1 requires every price source to clear a ToS review and to prefer an official API, but TCGplayer's API has been closed to new applicants since late 2024 and eBay's Marketplace Insights is a restricted Limited Release, leaving scraping — which both sets of terms prohibit. One obtainable aggregator (TCG API) carries Elestrals at 2,682 cards across 50 sets with a commercial licence at $49.99/mo, refreshing every 3 days rather than daily, so FR-2, FR-3 and FR-4 need amending before construction. The same licence may also cover the catalog data phase 1's empty FE01 seed needs, which would reopen ADR-001.
+- **Read when**: price sources, scraping, ToS review, phase 2 planning, `price_observations`, valuation confidence, or any question about why there is no scraper fleet — and before hand-compiling catalog CSVs.
 
 ### ADR-002: Card search — tiered SQL scan, not FULLTEXT
 - **Status**: accepted
