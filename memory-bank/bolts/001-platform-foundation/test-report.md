@@ -87,9 +87,15 @@ The router **is** mounted: `BrowserRouter` in `App.tsx`, `<Routes>` in `Gate`, `
 driving the rail via `RouterLink`, and active state from `useLocation()` rather than a prop
 that would drift. Placeholder pages name the bolt that replaces each one.
 
-The deep-link criterion holds by construction: because login is **embedded** rather than a
-redirect, the URL is never touched during sign-in — pasting `/wishlist` while signed out,
-authenticating, and landing on `/wishlist` needs no return-path plumbing at all.
+The deep-link criterion held by construction while login was **embedded**: the URL was never
+touched during sign-in, so pasting `/wishlist` while signed out and authenticating landed on
+`/wishlist` with no return-path plumbing at all.
+
+**Superseded 2026-08-12.** Sign-in is now a redirect to the platform's hosted login-web, matching
+its own apps. The browser leaves and returns to a fixed `redirectUri`, which drops the requested
+path — so `Gate` stores it in `sessionStorage` before redirecting and restores it after the code
+exchange, replacing the history entry so `?code`/`?state` are stripped at the same time. The
+criterion still holds; it is no longer free.
 
 ## Repository hygiene
 

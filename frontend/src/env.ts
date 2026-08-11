@@ -4,6 +4,9 @@ export const env = {
   // The platform publishes login-api on host port 9010 (container 8010). The old :8010 default
   // here reached nothing.
   loginApiUrl: import.meta.env.VITE_LOGIN_API_URL ?? "http://127.0.0.1:9010",
+  // The hosted login portal `login()` redirects to — login-web, the same page the platform's
+  // own apps use. Setting this is what switches the app from an embedded form to a redirect.
+  loginWebUrl: import.meta.env.VITE_LOGIN_WEB_URL ?? "http://127.0.0.1:9090",
   clientId: import.meta.env.VITE_LOGIN_CLIENT_ID ?? "",
   redirectUri: import.meta.env.VITE_REDIRECT_URI ?? `${window.location.origin}/`,
   // Empty string means SAME ORIGIN — requests go to /api/v1/... and nginx proxies them to the

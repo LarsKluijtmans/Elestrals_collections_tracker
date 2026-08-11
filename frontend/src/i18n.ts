@@ -1,7 +1,9 @@
-// One shared i18next instance for the whole app (intent 027 pattern). Imported once from
-// main.tsx before render. Detects the language from a persisted choice (localStorage) then the
-// browser, falling back to English. The same instance backs both this app's UI and the login
-// form (react-login reads its own "login" namespace from here).
+// One shared i18next instance for the whole app. Imported once from main.tsx before render.
+// Detects the language from a persisted choice (localStorage) then the browser, falling back to
+// English.
+//
+// The storage key is shared with the platform's own apps on purpose: someone who picked Dutch
+// on login-web arrives here already in Dutch, and vice versa.
 import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";

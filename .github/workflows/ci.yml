@@ -98,17 +98,15 @@ jobs:
       # install them into the frontend by path so the ^0.2.0 range never hits the registry.
       - name: Bootstrap platform SDKs
         run: |
-          for pkg in react-auth react-login; do
-            (cd _platform/packages/react/$pkg && npm install && npm run build)
-          done
+          # react-login is no longer a dependency: sign-in redirects to login-web,
+          # which owns its own UI and translations.
+          (cd _platform/packages/react/react-auth && npm install && npm run build)
 
       - name: Install
         working-directory: frontend
         run: |
           npm install
-          npm install --no-save \
-            ../_platform/packages/react/react-auth \
-            ../_platform/packages/react/react-login
+          npm install --no-save ../_platform/packages/react/react-auth
 
       - name: Typecheck
         working-directory: frontend

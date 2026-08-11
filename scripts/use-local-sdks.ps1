@@ -13,7 +13,9 @@ $here = Split-Path $PSScriptRoot -Parent
 Write-Host "Monorepo: $AuthRepo" -ForegroundColor Cyan
 
 # 1. Build the two React SDKs (each emits dist/ via tsc).
-foreach ($pkg in @("packages\react\react-auth", "packages\react\react-login")) {
+# react-auth only. `react-login` was dropped when sign-in became a redirect to login-web, which
+# renders and translates its own page — the embedded <LoginForm> is no longer used.
+foreach ($pkg in @("packages\react\react-auth")) {
     $path = Join-Path $AuthRepo $pkg
     Write-Host "Building $pkg ..." -ForegroundColor Cyan
     Push-Location $path
@@ -26,9 +28,7 @@ foreach ($pkg in @("packages\react\react-auth", "packages\react\react-login")) {
 Write-Host "Linking SDKs into frontend ..." -ForegroundColor Cyan
 Push-Location (Join-Path $here "frontend")
 npm install
-npm install --no-save `
-    (Join-Path $AuthRepo "packages\react\react-auth") `
-    (Join-Path $AuthRepo "packages\react\react-login")
+npm install --no-save (Join-Path $AuthRepo "packages\react\react-auth")
 Pop-Location
 
 # 3. Install the Python admin SDK (editable) into the backend venv, if it exists.

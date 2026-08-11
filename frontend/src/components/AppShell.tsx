@@ -14,6 +14,7 @@ import {
   Boxes, Heart, LayoutDashboard, Layers, Library, Settings, Upload,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useBranding } from "../branding/BrandingThemeProvider";
 import { NAV_ROUTES } from "../routes";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -38,7 +39,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const current = useLocation().pathname;
   const wide = useMediaQuery(theme.breakpoints.up("lg"));      // >= 1280
   const compact = useMediaQuery(theme.breakpoints.down("md")); // < 900
-  const { logout, isAuthenticated } = useAuth();
+  const { logout, login, isAuthenticated } = useAuth();
+  const { t } = useTranslation("app");
   const { user } = useUser();
   const { brandingAvailable } = useBranding();
 
@@ -129,11 +131,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                     {(user?.email ?? "?").slice(0, 1).toUpperCase()}
                   </Avatar>
                 </Tooltip>
-                <Button size="small" onClick={logout}>Sign out</Button>
+                <Button size="small" onClick={logout}>{t("logout")}</Button>
               </>
             ) : (
-              <Button size="small" component={RouterLink} to="/dashboard">
-                Sign in
+              // Straight to the hosted portal rather than via a gated route — one hop instead
+              // of two, and the return path is this page.
+              <Button size="small" onClick={() => void login()}>
+                {t("signIn")}
               </Button>
             )}
           </Toolbar>

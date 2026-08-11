@@ -115,9 +115,9 @@ jobs:
 
       - name: Bootstrap platform SDKs
         run: |
-          for pkg in react-auth react-login; do
-            (cd _platform/packages/react/$pkg && npm install && npm run build)
-          done
+          # react-login is no longer a dependency: sign-in redirects to login-web,
+          # which owns its own UI and translations.
+          (cd _platform/packages/react/react-auth && npm install && npm run build)
 
       # The image copies a pre-built dist/, so the bundle is built here. Every VITE_* is baked
       # in now and is public thereafter — there is deliberately no secret among them.
@@ -131,9 +131,7 @@ jobs:
           VITE_BACKEND_URL: ${{ vars.VITE_BACKEND_URL }}
         run: |
           npm install
-          npm install --no-save \
-            ../_platform/packages/react/react-auth \
-            ../_platform/packages/react/react-login
+          npm install --no-save ../_platform/packages/react/react-auth
           npm run build
 
       - uses: docker/setup-buildx-action@v3

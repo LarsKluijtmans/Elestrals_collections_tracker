@@ -1,7 +1,10 @@
-// The merged i18next resource tree: this app's own "app" namespace plus the login UI's "login"
-// namespace shipped by @lars-kluijtmans/react-login — so ONE instance and ONE language switch
-// cover the whole app, login form included.
-import { loginI18nResources } from "@lars-kluijtmans/react-login";
+// This app's own "app" namespace.
+//
+// The login UI's "login" namespace used to be merged in here, because the embedded <LoginForm>
+// read its strings from this same i18next instance. Sign-in is now a redirect to login-web,
+// which owns and translates its own page — so merging those resources would ship strings
+// nothing renders. The language choice still carries across: it is persisted to localStorage
+// under a key the platform's own apps share.
 import { en } from "./en";
 import { nl } from "./nl";
 
@@ -13,7 +16,4 @@ export const LANGUAGE_LABELS: Record<SupportedLanguage, string> = {
   nl: "Nederlands",
 };
 
-export const resources = {
-  en: { ...en, ...loginI18nResources.en },
-  nl: { ...nl, ...loginI18nResources.nl },
-};
+export const resources = { en, nl };
