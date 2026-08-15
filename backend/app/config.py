@@ -64,6 +64,19 @@ class Settings(BaseSettings):
     # Comma-separated browser origins allowed to call this API (CORS).
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # --- Reading the harvester's rollups (phase 2) -------------------------------
+    # `harvest-api` owns the harvest data in its own schema; this service holds NO write
+    # grant on it and may read exactly one table. See intent 002, FR-13 and story 019.
+    # Everything else about collection — sources, scans, matching — lives in `harvest/`.
+
+    #: The schema `price_daily` lives in. Blank on the SQLite unit-test path, where the
+    #: table is created unqualified; MySQL qualifies it.
+    harvest_schema: str = "elestrals_harvest"
+
+    #: A rollup older than this is stale enough to say so next to the figure. The harvester
+    #: being down degrades freshness, never availability (FR-13).
+    price_stale_after_hours: float = 48
+
     @property
     def operator_subs_list(self) -> list[str]:
         return [s.strip() for s in self.operator_subs.split(",") if s.strip()]

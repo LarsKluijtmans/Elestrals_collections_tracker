@@ -10,6 +10,7 @@ from ..repositories.app_log_repository import AppLogRepository
 from ..repositories.card_repository import CardRepository
 from ..repositories.catalog_import_repository import CatalogImportRepository
 from ..repositories.inventory_repository import InventoryRepository
+from ..repositories.price_repository import PriceRepository
 from ..repositories.printing_repository import PrintingRepository
 from ..repositories.set_completion_repository import SetCompletionRepository
 from ..repositories.set_repository import SetRepository
@@ -27,6 +28,7 @@ from ..services.coverage_service import CoverageService
 from ..services.inventory_service import InventoryService
 from ..services.import_runner import ImportRunner
 from ..services.profile_service import ProfileService
+from ..services.valuation_service import ValuationService
 from .db import get_db
 
 
@@ -167,3 +169,17 @@ def make_import_runner(db: Session) -> ImportRunner:
 
 def import_runner(db: Session = Depends(get_db)) -> ImportRunner:
     return make_import_runner(db)
+
+
+# --- Prices (phase 2, read-only across the service boundary) --------------------------
+# Everything here reads `elestrals_harvest.price_daily` and nothing else of the harvester's.
+# There is no write path and no grant for one — see `models/price_daily.py` and story 019.
+
+def price_repository(db: Session = Depends(get_db)) -> PriceRepository:
+    return PriceRepository(db)
+
+
+def valuation_service(
+    prices: PriceRepository = Depends(price_repository),
+) -> ValuationService:
+    return ValuationService(prices)

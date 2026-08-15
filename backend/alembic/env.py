@@ -22,6 +22,7 @@ from app.models import (  # noqa: F401,E402  (register the tables)
     catalog_import,
     import_rejection,
     inventory_item,
+    price_daily,
     printing,
     sealed_product,
     set as set_model,

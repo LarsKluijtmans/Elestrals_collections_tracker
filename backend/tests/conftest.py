@@ -6,7 +6,15 @@ real MySQL is a separate, later concern.
 """
 from __future__ import annotations
 
-from contextlib import contextmanager
+import os
+
+# Before any app import. `price_daily` lives in the harvester's schema on the real deployment and
+# is mapped here read-only; on this path everything is one unqualified in-memory database, so the
+# qualifier has to be cleared before the model class is defined. Setting it afterwards would be
+# too late, and `create_all` would fail looking for a schema SQLite does not have.
+os.environ["HARVEST_SCHEMA"] = ""
+
+from contextlib import contextmanager  # noqa: E402
 
 import pytest
 from sqlalchemy import create_engine, event
@@ -22,6 +30,7 @@ from app.models import (  # noqa: F401
     catalog_import,
     import_rejection,
     inventory_item,
+    price_daily,
     printing,
     sealed_product,
     user_profile,
