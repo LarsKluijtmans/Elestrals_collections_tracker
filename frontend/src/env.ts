@@ -14,4 +14,10 @@ export const env = {
   // null/undefined, so an intentionally empty VITE_BACKEND_URL survives.
   // The dev default is :9500; :9000 is taken by platform-management-api.
   backendUrl: import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:9500",
+  // harvest-api, the second backend (intent 002). A SEPARATE origin from `backendUrl`: the
+  // admin console talks to it directly rather than proxying through elestrals-api, because a
+  // proxy would make the collection backend a dependency of the admin console and undo half of
+  // FR-13. Empty string means same-origin under `/harvest`, which is the production
+  // arrangement once nginx proxies it.
+  harvestUrl: import.meta.env.VITE_HARVEST_URL ?? "http://127.0.0.1:9540",
 };

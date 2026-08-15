@@ -6,8 +6,12 @@ import type { ReactNode } from "react";
 export type RouteDef = {
   path: string;
   label: string;
-  /** 'public' | 'user' | 'operator' */
-  auth: "public" | "user" | "operator";
+  /** 'public' | 'user' | 'operator' | 'admin'
+   *
+   * `operator` and `admin` are deliberately distinct. The operator console re-imports the
+   * catalog; the admin console starts scrapers against sites that have asked us not to, and
+   * reads every listing they returned. Same person today, different acts. */
+  auth: "public" | "user" | "operator" | "admin";
   phase: 1 | 2 | 3;
   /** Shown in the left rail. */
   inNav: boolean;
@@ -30,11 +34,11 @@ export const ROUTES: RouteDef[] = [
   { path: "/u/:handle", label: "Public collection", auth: "public", phase: 1, inNav: false },
   { path: "/admin/catalog", label: "Catalog", auth: "operator", phase: 1, inNav: false },
 
-  // Phase 2 — not mounted yet.
-  { path: "/prices", label: "Prices", auth: "public", phase: 2, inNav: false },
-  { path: "/portfolio", label: "Portfolio", auth: "user", phase: 2, inNav: false },
+  // Phase 2 — mounted, except alerts (blocked on the phase-1 outbox, intent 001 bolt 009).
+  { path: "/prices", label: "Prices", auth: "public", phase: 2, inNav: true },
+  { path: "/portfolio", label: "Portfolio", auth: "user", phase: 2, inNav: true },
+  { path: "/admin/harvest", label: "Harvest", auth: "admin", phase: 2, inNav: false },
   { path: "/alerts", label: "Alerts", auth: "user", phase: 2, inNav: false },
-  { path: "/admin/scrapers", label: "Scrapers", auth: "operator", phase: 2, inNav: false },
 
   // Phase 3 — not mounted yet.
   { path: "/market", label: "Market", auth: "public", phase: 3, inNav: false },
@@ -43,4 +47,7 @@ export const ROUTES: RouteDef[] = [
   { path: "/messages", label: "Messages", auth: "user", phase: 3, inNav: false },
 ];
 
-export const NAV_ROUTES = ROUTES.filter((r) => r.inNav && r.phase === 1);
+export const NAV_ROUTES = ROUTES.filter((r) => r.inNav && r.phase <= 2);
+
+/** Admin-only routes never appear in the shared nav; the admin section links itself. */
+export const ADMIN_ROUTES = ROUTES.filter((r) => r.auth === "admin");
