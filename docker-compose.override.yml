@@ -28,6 +28,32 @@ services:
         aliases: [ elestrals-api ]
     mem_limit: 512m
 
+  # harvest-api needs the platform network for the same reason elestrals-api does: mysql by
+  # internal name. It does NOT need login-api on the hot path — it validates tokens against
+  # cached JWKS like its sibling — but it fetches that JWKS over the same network.
+  harvest-api:
+    networks:
+      default: {}
+      platform:
+        aliases: [ harvest-api ]
+    mem_limit: 512m
+
+  harvest-worker:
+    networks:
+      default: {}
+      platform:
+        aliases: [ harvest-worker ]
+    # Higher than the API's: a deep scan holds a catalog index of every tracked printing in
+    # memory for the length of the run, which is the design decision that keeps the matcher off
+    # the database.
+    mem_limit: 1g
+
+  harvest-beat:
+    networks:
+      default: {}
+      platform: {}
+    mem_limit: 128m
+
   elestrals-web:
     networks:
       default: {}
