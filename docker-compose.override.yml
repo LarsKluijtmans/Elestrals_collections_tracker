@@ -1,0 +1,41 @@
+# CO-LOCATE topology — auto-merged by `docker compose`.
+#
+# Runs Elestral Vault ON the platform's Docker network (`platform_default`) so the backend
+# reaches mysql:3306 and login-api:8010 by INTERNAL name — no public round-trip, no dependency
+# on the tunnel being up for service-to-service calls — and so the PLATFORM's cloudflared can
+# route elestrals.<domain> straight to elestrals-web.
+#
+# Requires the platform stack (compose project `platform`) to be UP: it owns the network.
+#
+#   docker compose up -d --build
+#
+# Note the ports here are the services' INTERNAL ports (8010, 8050, 8030), not the 9xxx host
+# ports the platform publishes. Inside the network you talk to containers, not to the host.
+services:
+  elestrals-api:
+    environment:
+      LOGIN_API_URL: http://login-api:8010
+      AUTH_API_URL: http://auth-api:8050
+      LOGS_API_URL: http://logs-api:8030
+      NOTIFICATIONS_API_URL: http://notification-api:8020
+      STORAGE_API_URL: http://storage-api:8070
+      # TOKEN_ISSUER is deliberately NOT overridden — it stays the public https://auth... from
+      # the base compose, because that is the `iss` the browser's token actually carries and we
+      # pin it. Pointing it at the internal name rejects every token.
+    networks:
+      default: {}
+      platform:
+        aliases: [ elestrals-api ]
+    mem_limit: 512m
+
+  elestrals-web:
+    networks:
+      default: {}
+      platform:
+        aliases: [ elestrals-web ]
+    mem_limit: 128m
+
+networks:
+  platform:
+    external: true
+    name: platform_default

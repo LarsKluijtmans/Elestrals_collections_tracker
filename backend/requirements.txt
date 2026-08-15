@@ -1,0 +1,26 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+python-jose[cryptography]>=3.3
+httpx>=0.27
+
+# Persistence — our own `elestrals` database on the platform's MySQL.
+SQLAlchemy>=2.0
+alembic>=1.13
+PyMySQL>=1.1
+
+# Scheduled jobs (phase 1: catalog import, log sweep, outbox drain).
+# Phase 2 replaces this with Celery + Redis — see standards/system-architecture.md.
+APScheduler>=3.10
+
+# The platform's Python admin SDK (M2M auth + users/logs/usage).
+# If 0.2.0 isn't on PyPI yet, install it from the monorepo instead:
+#   pip install -e ../../auth/packages/python/admin-sdk-python
+# (scripts/use-local-sdks.ps1 does this for you.)
+lars-kluijtmans-admin-sdk==0.2.0
+
+# --- dev / test -------------------------------------------------------------
+pytest>=8.0
+pytest-asyncio>=0.23
+ruff>=0.6

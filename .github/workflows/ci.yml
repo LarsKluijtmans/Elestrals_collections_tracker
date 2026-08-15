@@ -1,0 +1,121 @@
+name: CI
+
+# Lints and tests both apps on every push and PR.
+#
+# THE PREREQUISITE, stated once: neither app installs from a clean checkout today.
+# `lars-kluijtmans-admin-sdk==0.2.0` is not on PyPI and `@lars-kluijtmans/react-auth@^0.2.0` is
+# not on npm — both 404. The platform has publish workflows for both
+# (`publish-admin-sdk-python.yml`, `publish-react-sdks.yml`) but they are workflow_dispatch-only
+# and have not been run for 0.2.0.
+#
+# So CI bootstraps the SDKs from the sibling `auth` repository, exactly as the platform vendors
+# its own in-repo libtenancy/libservice into service images. That needs one repo secret:
+#
+#   AUTH_REPO_TOKEN — a PAT with `repo` scope, if LarsKluijtmans/auth is private.
+#                     Omit it and the built-in token is used, which works only if it is public.
+#
+# Once both SDKs are published, delete the "Bootstrap platform SDKs" steps and the secret; the
+# ordinary installs resolve on their own.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  AUTH_REPO: LarsKluijtmans/auth
+  AUTH_REF: main
+
+jobs:
+  backend:
+    name: Backend — ruff + pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the platform (for the unpublished admin SDK)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.AUTH_REPO }}
+          ref: ${{ env.AUTH_REF }}
+          token: ${{ secrets.AUTH_REPO_TOKEN || github.token }}
+          path: _platform
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Bootstrap platform SDK
+        run: pip install ../_platform/packages/python/admin-sdk-python
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      # F8*/E7* only: undefined names, unused imports and syntax-class errors. The repo has no
+      # ruff config, so the full default rule set flags stylistic choices the codebase made
+      # deliberately (FastAPI's Depends-in-defaults among them).
+      - name: Lint
+        run: ruff check app tests --select F,E7 --output-format=concise
+
+      # The suite runs on in-memory SQLite and needs no services. Integration against a real
+      # MySQL lives in backend/scripts/ and is run by hand against the platform.
+      - name: Test
+        run: pytest -q --cov=app --cov-report=term --cov-fail-under=80
+
+  frontend:
+    name: Frontend — typecheck + vitest + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the platform (for the unpublished react SDKs)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.AUTH_REPO }}
+          ref: ${{ env.AUTH_REF }}
+          token: ${{ secrets.AUTH_REPO_TOKEN || github.token }}
+          path: _platform
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # The Linux equivalent of scripts/use-local-sdks.ps1: build both SDKs from source, then
+      # install them into the frontend by path so the ^0.2.0 range never hits the registry.
+      - name: Bootstrap platform SDKs
+        run: |
+          # react-login is no longer a dependency: sign-in redirects to login-web,
+          # which owns its own UI and translations.
+          (cd _platform/packages/react/react-auth && npm install && npm run build)
+
+      - name: Install
+        working-directory: frontend
+        run: |
+          npm install
+          npm install --no-save ../_platform/packages/react/react-auth
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Test
+        working-directory: frontend
+        run: npm test
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build

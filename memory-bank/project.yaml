@@ -1,0 +1,32 @@
+project_name: elestrals-collection-tracker
+project_type: full-stack-web
+initialized_at: '2026-08-09T12:00:00Z'
+flow: aidlc
+
+# Default bolt type for unit decomposition.
+# DDD is the default because the domain (catalog / inventory / pricing / market)
+# has real invariants worth modelling; thin CRUD units may downgrade to simple.
+default_bolt_type: ddd-construction-bolt
+
+platform:
+  # This app is a CLIENT of the sibling `auth` platform. It does not bundle one.
+  repo: ../auth
+  starter: ../app-starter
+  services_consumed:
+    - login-api      # OAuth2 + PKCE, JWKS, branding config discovery
+    - auth-api       # user enrichment via M2M admin SDK
+    - branding-api   # resolved theme (company -> project cascade)
+    - notification-api
+    - logs-api       # platform logging + feature-usage metering
+    - storage-api    # end-user owned files (avatars, listing photos)
+
+intents:
+  - id: 001-collection-tracker
+    phase: 1
+    status: inception-complete
+  - id: 002-price-intelligence
+    phase: 2
+    status: inception-complete
+  - id: 003-marketplace
+    phase: 3
+    status: outline

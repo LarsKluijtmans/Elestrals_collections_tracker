@@ -1,0 +1,18 @@
+# FE01 "Base" — 126 cards. TO BE COMPILED BY HAND.
+#
+# This file intentionally ships with no card rows. The data must be compiled from cards you
+# own and from publicly published checklists — NOT scraped from collect.elestrals.com, whose
+# Terms of Use prohibit both scraping and use in a competing product (adr-001).
+#
+# Until rows are added, importing FE01 succeeds and reports coverage 0/126 as a warning.
+# That is the completeness guard doing its job, not a failure.
+#
+# One row per PRINTING. Card-level fields repeat across a card's rows and must agree exactly;
+# a disagreement rejects that card rather than letting row order decide.
+#
+# Example of a card with two printings (delete the leading '#' and edit):
+#
+# FE01,BS1-001,Teratlas,elestral,earth,,,2400,2100,"{""earth"":2}",holo_rare,foil,en,first,
+# FE01,BS1-001,Teratlas,elestral,earth,,,2400,2100,"{""earth"":2}",rare,normal,en,first,
+#
+set_code,collector_number,name,card_type,element,rune_type,subtype,attack,defence,spirit_cost,rarity,finish,language,edition,image_url
