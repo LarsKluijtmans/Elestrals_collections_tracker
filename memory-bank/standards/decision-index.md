@@ -1,6 +1,6 @@
 ---
-last_updated: 2026-08-12T22:40:00Z
-total_decisions: 3
+last_updated: 2026-08-15T14:40:00Z
+total_decisions: 4
 ---
 
 # Decision Index
@@ -18,13 +18,33 @@ Use this to find relevant prior decisions when working on related features.
 
 ## Decisions
 
+### ADR-004: Scrape rather than licence — the cost is declined and the risk is accepted
+- **Status**: **accepted** — the human decision ADR-003 was waiting for
+- **Date**: 2026-08-15
+- **Intent**: 002-price-intelligence (inception)
+- **Path**: `intents/002-price-intelligence/adr-004-scrape-over-licence.md`
+- **Risk owner**: Lars Kluijtmans
+- **Summary**: The $49.99/mo licensed aggregator proposed in ADR-003 is declined. Collection is by
+  scraping, robots.txt is deliberately not obeyed, request rates are set for throughput, and the
+  user agent stays honest and identifiable. TCGplayer's and eBay's terms prohibit this; the terms
+  review is still mandatory before enablement but records an accepted risk rather than issuing a
+  veto (`risk_accepted_by NOT NULL` before `enabled = 1`). The technical case: scraped
+  completed-listings pages carry a real sale price and date, so FR-4's sold/listed distinction
+  survives intact where the aggregate feed would have forced FR-2, FR-3 and FR-4 to be weakened.
+  The costs accepted are contractual exposure, blocks as a normal operating condition (FR-18), and
+  connector maintenance in place of a subscription. Structurally isolated in a second backend
+  (FR-13) so a blocked scraper cannot degrade the collection tracker.
+- **Read when**: price sources, scraping, robots.txt, terms of service, risk acceptance,
+  `price_sources`, blocks and quarantine, the second backend's existence, why phase 2 has no
+  subscription — and **before** enabling any source for the first time.
+
 ### ADR-003: Price source — a licensed aggregator, because every direct route is closed
-- **Status**: **proposed** — awaiting a human decision, because it costs money
+- **Status**: **superseded** by ADR-004 — the research stands, the conclusion does not
 - **Date**: 2026-08-12
 - **Intent**: 002-price-intelligence (inception spike, before bolt planning)
 - **Path**: `intents/002-price-intelligence/adr-003-price-source.md`
 - **Summary**: FR-1 requires every price source to clear a ToS review and to prefer an official API, but TCGplayer's API has been closed to new applicants since late 2024 and eBay's Marketplace Insights is a restricted Limited Release, leaving scraping — which both sets of terms prohibit. One obtainable aggregator (TCG API) carries Elestrals at 2,682 cards across 50 sets with a commercial licence at $49.99/mo, refreshing every 3 days rather than daily, so FR-2, FR-3 and FR-4 need amending before construction. The same licence may also cover the catalog data phase 1's empty FE01 seed needs, which would reopen ADR-001.
-- **Read when**: price sources, scraping, ToS review, phase 2 planning, `price_observations`, valuation confidence, or any question about why there is no scraper fleet — and before hand-compiling catalog CSVs.
+- **Read when**: you need the *map* of what price routes exist and on what terms — TCGplayer's closed API, eBay's Limited Release sold-history, Browse's active-listings-only limitation, the aggregator's coverage and price. For the decision taken on that map, read ADR-004 instead.
 
 ### ADR-002: Card search — tiered SQL scan, not FULLTEXT
 - **Status**: accepted

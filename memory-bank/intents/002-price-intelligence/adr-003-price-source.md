@@ -1,7 +1,8 @@
 ---
 adr: 003
 title: Price source — a licensed aggregator, because every direct route is closed
-status: proposed
+status: superseded
+superseded_by: adr-004-scrape-over-licence
 date: 2026-08-12
 intent: 002-price-intelligence
 stage: inception-spike
@@ -9,7 +10,15 @@ stage: inception-spike
 
 # ADR-003: Where phase 2's prices come from
 
-**Status is `proposed`, not `accepted`: this one costs money, and that is the human's call.**
+> **Superseded 2026-08-15 by `adr-004-scrape-over-licence.md`.** This ADR was `proposed` and
+> awaiting the human decision it named. That decision was made: **do not pay, scrape instead.**
+>
+> The *research* below stands and is why ADR-004 exists — every route it mapped is still closed,
+> the aggregator still costs $49.99/mo, and eBay Browse still returns asking prices rather than
+> sales. What changed is the conclusion drawn from it. Read this for the map; read ADR-004 for
+> the decision and the risk that was accepted with it.
+
+**Status was `proposed`, not `accepted`: this one costs money, and that is the human's call.**
 
 ## Context
 
