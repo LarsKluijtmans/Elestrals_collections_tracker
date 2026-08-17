@@ -1,15 +1,37 @@
 ---
 bolt: 008-import-export
 stage: test
-status: partial
+status: complete
 created: 2026-08-17T21:25:00Z
 ---
 
 # Test Report: 008-import-export
 
-**Status: `partial`, on two unmeasured budgets.** Every behavioural criterion is met. The 30-second
-dry run and the 100MB export have the right *shapes* — a generator, an index built once per job —
-and neither has been put on a clock.
+**Status: `complete`.** Every behavioural criterion is met, and the two budgets this report
+originally filed as unmeasured were measured on 2026-08-17 against MySQL 8.4.
+
+| Budget | Measured | |
+|---|---|---|
+| 5,000-row dry run < 30s | **9.9s** | 0 add, 5,000 update, 0 rejected |
+| 10,000-row export under 100MB RSS | **+5MB** (122 → 127MB) | 1.2MB written in 8.1s |
+
+Two things about how these were taken, because both nearly produced a number that meant nothing:
+
+**The export is consumed and discarded**, exactly as `StreamingResponse` does it. Accumulating the
+chunks into a list would have measured the benchmark's own buffer rather than the exporter's memory
+— and would have "proved" the generator streams by building the very list the generator exists to
+avoid.
+
+**The memory check failed to measure anything on the first run, and passed anyway.** `_rss_mb()`
+returned `0.0` where it could not read the platform, so on Windows the comparison was `0 - 0 < 100`
+→ PASS, with no measurement behind it. It now returns `None` and the benchmark reports
+`NOT MEASURED` instead of counting it. This is the *third* time this project has caught a check that
+silently verified nothing — after `status-integrity.cjs` skipping every CRLF file and bolt 013
+enumerating an empty route list. The pattern is identical each time: a failure path that returns a
+falsy default, and a comparison that treats it as a pass.
+
+The 5,000 dry-run rows all matched on **rung 1**, which is the export/import round trip closing at
+scale rather than on a hand-built fixture.
 
 ## Automated
 
@@ -111,9 +133,12 @@ wrong on a file whose card names contain semicolons.
 
 | Criterion | Why |
 |---|---|
-| 5,000-row dry run < 30s | Needs a realistic catalog and a clock. The matcher's name index is built once per job rather than per row, which is what makes the budget reachable — but that is a design property, not a measurement |
-| 10,000-row export under 100MB RSS | Export is a generator and the route streams it; asserted structurally (`test_export_streams_rather_than_accumulating`) rather than by watching memory |
 | `inventory.bulk_imported` metering | Story 029's sixth criterion. Not wired — usage metering is off across the whole service until the M2M scopes are granted, which is bolt 001's open item |
+
+Both performance criteria have since moved out of this table; the measurements are at the top of
+this report. The structural assertion `test_export_streams_rather_than_accumulating` stays, because
+it fails in CI where the benchmark only runs by hand — the measurement proves the budget, the test
+protects it.
 
 ## Notes
 

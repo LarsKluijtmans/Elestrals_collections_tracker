@@ -2,11 +2,11 @@
 id: 031-market-overview
 unit: 006-price-surfaces
 intent: 002-price-intelligence
-status: ready
+status: complete
 priority: should
 created: 2026-08-15T15:00:00Z
 assigned_bolt: 016-price-surfaces
-implemented: false
+implemented: true
 ---
 
 # Story: 031-market-overview

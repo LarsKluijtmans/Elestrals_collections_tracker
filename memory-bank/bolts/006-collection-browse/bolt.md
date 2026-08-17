@@ -86,9 +86,10 @@ operations that make selling 200 cards one interaction rather than 200.
 
 ## Success Criteria
 
-- [ ] 10,000 rows at 60fps on a mid-range laptop; list API p95 < 400ms — **unmeasured.** The
-      windowing and the fixed row heights are in place and the index is built for the sort;
-      neither number has been put on a clock
+- [~] 10,000 rows at 60fps on a mid-range laptop; list API p95 < 400ms — **the API half is
+      measured and met**, at 10,000 real holdings on MySQL 8.4 (2026-08-17): 23.7ms unfiltered,
+      36.3ms filtered, and 23.2ms a thousand pages deep. The 60fps scroll still needs a browser
+      and a profiler, and no test suite can produce that number
 - [x] Cursor pagination, not offset — **keyset**, and pinned by a test that inserts a row
       mid-page and proves the window does not shift
 - [x] Filters combine, serialise to the URL, and survive reload and the back button

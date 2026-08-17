@@ -131,8 +131,20 @@ decisions the user has to make.
 2026-08-17 against MySQL 8.4 — 29/29. The compare-and-swap holds under MySQL's own row locking:
 exactly one of two racing undos applied, and the loser was refused rather than erroring.
 
-**Still unrun:** the p95 write budget from bolt 004 (< 200ms including recompute) against `/adjust`
-specifically. `scripts/bench.py` measures the add path, not this one.
+**Also closed:** the p95 write budget from bolt 004 (< 200ms including recompute) against `/adjust`
+specifically. `scripts/bench.py` only ever measured the *add* path; `/adjust` does strictly more
+work — a compare-and-swap on top of the same completion recompute — so inheriting the add number
+would have been an assumption, not a measurement. Benchmark `[E]` now measures it directly, against
+MySQL 8.4 on 2026-08-17:
+
+| | median | p95 | max | budget |
+|---|---|---|---|---|
+| `/adjust` incl. recompute (n=150) | 15.2ms | **16.3ms** | 17.6ms | 200ms |
+
+Twelve times under budget, and the compare-and-swap costs about 2ms over a plain add — which is the
+answer to the bolt's note about not optimising an API already answering fast. It is answering in
+sixteen milliseconds. If the ten-minute session misses its median, the cause is upstream of this
+number.
 
 ## Notes
 

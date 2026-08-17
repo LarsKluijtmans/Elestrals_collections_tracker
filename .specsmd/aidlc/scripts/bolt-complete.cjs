@@ -148,7 +148,11 @@ const INTENTS_DIR = path.join(MEMORY_BANK_DIR, 'intents');
  * Extract frontmatter from a markdown file
  */
 function extractFrontmatter(content) {
-    const match = content.match(/^---\n([\s\S]+?)\n---/);
+    // `\r?\n`, not `\n`. The LF-only version returned null on any CRLF file, and every
+    // caller reads null as "no frontmatter, skip this file" - so on Windows these scripts
+    // silently scanned a fraction of the memory bank and reported zero problems. A validator
+    // that passes by checking nothing is worse than no validator at all.
+    const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---/);
     if (!match) return null;
 
     try {
@@ -163,7 +167,7 @@ function extractFrontmatter(content) {
  * Update frontmatter in a markdown file
  */
 function updateFrontmatter(content, newFrontmatter) {
-    const match = content.match(/^---\n([\s\S]+?)\n---/);
+    const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---/);
     if (!match) return null;
 
     const newYaml = yaml.dump(newFrontmatter, {

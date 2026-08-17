@@ -2,9 +2,9 @@
 unit: 006-price-surfaces
 intent: 002-price-intelligence
 phase: inception
-status: in-progress
+status: complete
 created: '2026-08-15T14:55:00Z'
-updated: '2026-08-15T14:55:00Z'
+updated: '2026-08-17T23:55:00Z'
 ---
 
 # Unit Brief: price-surfaces

@@ -2,11 +2,11 @@
 id: 028-csv-import-mapping
 unit: 006-import-export
 intent: 001-collection-tracker
-status: ready
+status: complete
 priority: must
 created: 2026-08-09T12:00:00Z
 assigned_bolt: 008-import-export
-implemented: false
+implemented: true
 ---
 
 # Story: 028-csv-import-mapping

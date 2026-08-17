@@ -8,8 +8,25 @@ created: 2026-08-17T20:10:00Z
 # Test Report: 006-collection-browse
 
 **Status: `partial`, on measurement rather than behaviour.** Every functional criterion is built and
-tested. The two that are not met are both numbers nobody has put on a clock — the 60fps scroll and
-the 400ms p95 — plus the screen-reader pass this project has now deferred twice.
+tested. What remains is the 60fps scroll, which needs a browser, and the screen-reader pass this
+project has now deferred twice.
+
+**Closed since this report was filed — the 400ms list p95.** Measured on 2026-08-17 against MySQL
+8.4 with the bench user's collection seeded to **10,000 real holdings**, which is the size story 019
+names. Measuring at the default 200 would have passed on any implementation, including the offset
+one this replaced.
+
+| | median | p95 | max | budget |
+|---|---|---|---|---|
+| unfiltered, page 1 | 22.4ms | **23.7ms** | 25.3ms | 400ms |
+| page ~1,000 deep, via the keyset cursor | 22.3ms | **23.2ms** | 23.9ms | 400ms |
+| filtered, page 1 (joins the catalog) | 33.2ms | **36.3ms** | 37.6ms | 400ms |
+
+The middle row is the one worth keeping. **A page a thousand deep costs the same as page one** —
+23.2ms against 23.7ms, the deep page marginally *faster* within noise. That is the keyset decision
+paying out, and it is the number an `OFFSET 50000` implementation could not produce: offset makes
+the database walk and discard every skipped row, so the cost climbs with depth. Here it is flat.
+The design note claimed this; now it is measured rather than asserted.
 
 ## Automated
 
@@ -89,9 +106,11 @@ at once on it. `asdict` throughout.
 | Criterion | Why |
 |---|---|
 | 10,000 rows at 60fps | Needs a browser, a real collection and a frame profiler. The windowing, the fixed per-density row heights and `ix_inventory_user_created_id` are all in place; none of them is a measurement |
-| List API p95 < 400ms | `scripts/bench.py` measures import, search and write. A browse benchmark is a natural addition and is not there |
 | Screen reader | `aria-sort` on sortable headers, `aria-pressed` on filter chips, named steppers and a live result count are asserted in tests. An actual NVDA/VoiceOver pass is not — the **same gap bolt 003 carries**, now on two bolts |
 | WCAG 2.2 AA in full | Contrast, focus visibility and an axe run remain unrun across the whole app |
+
+The 400ms list p95 used to be the second row of this table. `scripts/bench.py` grew a `[F]` section
+that seeds 10,000 holdings and measures it; the numbers are at the top of this report.
 
 ## Notes
 

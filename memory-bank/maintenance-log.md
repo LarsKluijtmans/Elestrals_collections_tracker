@@ -204,3 +204,65 @@ down from 5:
 The other four resolved themselves as units genuinely completed. `artifact-validator.cjs` → **0**.
 
 Expect this one row on every run until the script learns `partial`.
+
+---
+
+## 2026-08-17 (late) — the residual was a bug, and it was hiding eighteen more
+
+The row above says "expect this on every run until the script learns `partial`". That was the wrong
+diagnosis. The script had two defects, and the second one was concealing real work.
+
+**1. The frontmatter regex was LF-only, and failing silently.**
+
+```js
+content.match(/^---\n([\s\S]+?)\n---/)     // before
+content.match(/^---\r?\n([\s\S]+?)\r?\n---/) // after
+```
+
+On a CRLF file this returns `null`, and every caller reads `null` as "no frontmatter, skip". So on
+Windows the scripts scanned whatever happened to be LF and reported on that, with no indication that
+anything had been skipped. An earlier session diagnosed this and fixed it by **normalising the
+files** — which worked until the next tool wrote a file with `\n` on Windows and Python's newline
+translation turned it back into `\r\n`. That is precisely what happened while updating the bolt
+records tonight: six files reverted, and the scan silently dropped from 24 bolts to 17.
+
+Normalising files treated the symptom. `.gitattributes` keeps the *committed* bytes LF, but these
+scripts read the **working copy**, so it never protected them. The regex is the fix.
+
+Measured, by CRLF-ing a file on purpose and re-running: 24 bolts scanned and 19 inconsistencies
+found, identically, with and without CRLF. Before the fix the same file was invisible.
+
+**2. `anyInProgress` did not count completed units.**
+
+```js
+const anyStarted = unitStatuses.some(u => u.status === 'in-progress' || u.status === 'complete');
+```
+
+An intent with three units complete and four not yet begun scored zero `in-progress`, failed
+`allComplete`, and fell through to `units-defined` — the branch meaning *construction has not
+started*. The script was not merely blind here, it was **wrong**, and `--fix` would have written the
+false status over the true one without asking. The first entry in this log, dated 2026-08-09, is
+exactly that: `requirements.md | complete | units-defined`. It has been doing this from the start.
+
+### What the fixed scripts then found
+
+Eighteen genuine inconsistencies, invisible for as long as the affected files had been CRLF:
+
+| | |
+|---|---|
+| 15 stories | `status: ready`, `implemented: false`, under bolts long since `complete` — all of unit 004-rollups-and-valuation, 006-price-surfaces and 007-alerts, plus unit 006-import-export |
+| 3 units | `in-progress`/`stories-defined` with 1/1 bolts complete |
+| intent 002 | all 7 units complete; the intent still said `construction` |
+
+All closed. Both scripts now report **0**, over **24** bolts rather than 17 — which is the first
+time that zero has meant anything.
+
+### The lesson, for the third time in this repo
+
+A check that cannot run reports success. `status-integrity.cjs` skipping CRLF files, bolt 013
+enumerating an empty route list, and `bench.py` returning `0.0` for an unreadable RSS and passing
+`0 - 0 < 100` — three instances, one shape: **a failure path that returns a falsy default into a
+comparison that treats it as a pass.** The fix is the same in all three: make "could not measure"
+a distinct value from "measured zero", and report it.
+
+`bench.py` now prints `NOT MEASURED: <criterion>` beneath its pass count for exactly this reason.

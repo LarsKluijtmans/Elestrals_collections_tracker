@@ -123,9 +123,9 @@ Three of the five built bolts are `partial`, and each on one nameable thing:
 | 003 catalog surface | A full WCAG 2.2 AA pass — contrast, focus visibility, axe — and the three public pages rendered in a browser rather than type-checked |
 | 004 inventory core | Nothing. `complete` as of the 2026-08-11 verification run |
 | 005 collection entry | The timed session with a real person: median add < 5s, 100 cards < 10min |
-| 006 collection browse | Two unmeasured budgets — 10,000 rows at 60fps and a 400ms list p95 — plus the same screen-reader pass bolt 003 is waiting on. **That audit is now deferred on three bolts and should stop being deferred** |
+| 006 collection browse | The 60fps scroll, which needs a browser and a profiler, plus the same screen-reader pass bolt 003 is waiting on. **That audit is now deferred on three bolts and should stop being deferred.** The 400ms list p95 is closed — 23.7ms at 10,000 holdings, and flat a thousand pages deep |
 | 007 sealed and wishlist | Nothing. `complete` |
-| 008 import / export | The 30-second dry run and 100MB export budgets are unmeasured (the shapes are right; neither is on a clock), and story 029's usage metering waits on bolt 001's scopes |
+| 008 import / export | Story 029's usage metering, which waits on bolt 001's scopes. Both budgets are closed — 9.9s of the 30s dry run, +5MB of the 100MB export |
 | 009 profile and sharing | Story 031, above. The outbox also has no real sender wired — it accumulates rather than delivers, and the default sender *raises* rather than quietly marking things sent |
 
 Every story has its own file at `units/{unit}/stories/{SSS}-{title-slug}.md`, as

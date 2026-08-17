@@ -2,11 +2,11 @@
 id: 022-nightly-snapshot-valuation
 unit: 004-rollups-and-valuation
 intent: 002-price-intelligence
-status: ready
+status: complete
 priority: must
 created: 2026-08-15T15:00:00Z
 assigned_bolt: 014-rollups-and-valuation
-implemented: false
+implemented: true
 ---
 
 # Story: 022-nightly-snapshot-valuation

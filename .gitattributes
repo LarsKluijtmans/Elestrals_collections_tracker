@@ -11,8 +11,20 @@
 # it never opened: on 2026-08-17 it was scanning 7 of 17 bolts and calling the result clean, which
 # is how five complete bolts kept stories marked `ready` with nobody noticing.
 #
-# Pinning Markdown to LF in the *working tree* is what fixes that for good. Patching the regex
-# would work until the next `.specsmd` upgrade overwrote it.
+# Pinning Markdown to LF in the *working tree* is half the fix. The other half is the regex itself,
+# which is now `/^---\r?\n([\s\S]+?)\r?\n---/` in all three scripts.
+#
+# Both halves are needed, and the reasoning for each is the other one's failure mode:
+#
+#   * The regex alone is fragile across a `.specsmd` upgrade, which would overwrite the patch.
+#   * **These attributes alone do not work**, and that was discovered the hard way on 2026-08-17.
+#     They govern what git *writes on checkout*; the scripts read whatever is on disk *now*. Any
+#     tool that rewrites a file in between can reintroduce CRLF — Python's `write_text` does it
+#     silently on Windows, which is exactly how six files reverted within hours of the original
+#     normalisation, dropping the scan from 24 bolts to 17 with no warning.
+#
+# So: attributes to survive the upgrade, regex to survive the next tool. If you find yourself here
+# because the scan count looks low, check for CRLF in the working copy first.
 *.md text eol=lf
 
 # The memory bank is the artifact hierarchy those scripts walk. Everything in it, whatever the

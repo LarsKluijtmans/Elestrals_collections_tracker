@@ -38,7 +38,11 @@ const MAINTENANCE_LOG = path.join(MEMORY_BANK_DIR, 'maintenance-log.md');
  * Extract frontmatter from a markdown file
  */
 function extractFrontmatter(content) {
-    const match = content.match(/^---\n([\s\S]+?)\n---/);
+    // `\r?\n`, not `\n`. The LF-only version returned null on any CRLF file, and every
+    // caller reads null as "no frontmatter, skip this file" - so on Windows these scripts
+    // silently scanned a fraction of the memory bank and reported zero problems. A validator
+    // that passes by checking nothing is worse than no validator at all.
+    const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---/);
     if (!match) return null;
 
     try {
@@ -53,7 +57,7 @@ function extractFrontmatter(content) {
  * Update frontmatter in a markdown file
  */
 function updateFrontmatter(content, newFrontmatter) {
-    const match = content.match(/^---\n([\s\S]+?)\n---/);
+    const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---/);
     if (!match) return null;
 
     const newYaml = yaml.dump(newFrontmatter, {
@@ -305,11 +309,18 @@ async function checkIntentStatus(intent) {
     // Determine expected status
     let expectedStatus;
     const allComplete = unitStatuses.every(u => u.status === 'complete');
-    const anyInProgress = unitStatuses.some(u => u.status === 'in-progress');
+    // A *finished* unit is evidence construction started, just as much as an in-progress one.
+    // Checking only for 'in-progress' meant an intent with three units complete and four not yet
+    // begun scored zero in-progress and was told to revert to 'units-defined' — demanding that a
+    // true statement ("this is under construction") be replaced by a false one. --fix would have
+    // applied it silently, so the check was not merely blind here; it was actively wrong.
+    const anyStarted = unitStatuses.some(
+        u => u.status === 'in-progress' || u.status === 'complete'
+    );
 
     if (allComplete) {
         expectedStatus = 'complete';
-    } else if (anyInProgress) {
+    } else if (anyStarted) {
         expectedStatus = 'construction';
     } else {
         expectedStatus = 'units-defined';
