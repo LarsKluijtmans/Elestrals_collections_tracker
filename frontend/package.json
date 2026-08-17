@@ -17,6 +17,8 @@
     "@lars-kluijtmans/react-auth": "^0.2.0",
     "@mui/material": "^9.0.1",
     "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-table": "^9.1.2",
+    "@tanstack/react-virtual": "^3.14.9",
     "i18next": "^23.16.8",
     "i18next-browser-languagedetector": "^8.0.2",
     "lucide-react": "^0.468.0",

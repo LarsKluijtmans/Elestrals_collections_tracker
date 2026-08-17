@@ -313,6 +313,198 @@ export async function fetchHoldingsFor(
   return (await res.json()) as Paged<InventoryItemView>;
 }
 
+// --- Browse (bolt 006) ---------------------------------------------------------------
+
+export type CollectionRow = {
+  id: string;
+  printing_id: string;
+  card_id: string;
+  name: string;
+  set_code: string;
+  collector_number: string;
+  element: string | null;
+  rarity: string;
+  finish: string;
+  language: string;
+  edition: string;
+  image_url: string | null;
+  alt_text: string;
+  condition: string;
+  quantity: number;
+  is_graded: boolean;
+  grader: string | null;
+  grade: number | null;
+  storage_location: string | null;
+  is_for_trade: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CollectionPage = {
+  items: CollectionRow[];
+  /** Matching the filter, not returned in this page. Always shown. */
+  total: number;
+  next_cursor: string | null;
+  filters: Record<string, unknown>;
+  sort: string;
+};
+
+export type BulkResult = {
+  requested: number;
+  applied: number;
+  failures: { item_id: string; reason: string; code: string }[];
+  partial: boolean;
+};
+
+export type SavedView = {
+  id: string;
+  name: string;
+  filters: Record<string, unknown>;
+  sort: string;
+  density: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MissingReport = {
+  set_code: string;
+  set_name: string;
+  card_count: number;
+  owned_cards: number;
+  missing: {
+    card_id: string; collector_number: string; name: string;
+    element: string | null; rarity: string | null; printing_id: string | null;
+  }[];
+};
+
+export type DashboardData = {
+  total_items: number;
+  distinct_printings: number;
+  sets_started: number;
+  /** `null` means not available — the tile says so in words. **Never rendered as 0.** */
+  value: {
+    total_cents: number; currency: string; confidence: string;
+    valued_items: number; total_items: number;
+  } | null;
+  rings: SetCompletionView[];
+  recent: CollectionRow[];
+  is_empty: boolean;
+};
+
+export type SetCompletionView = {
+  set_code: string;
+  set_name: string;
+  owned_cards: number;
+  card_count: number;
+  total_quantity: number;
+  ratio: number;
+};
+
+export type SnapshotPoint = {
+  taken_on: string;
+  item_count: number;
+  distinct_printings: number;
+  total_value_cents: number | null;
+  currency: string;
+  valuation_confidence: string;
+};
+
+export async function fetchCollection(
+  query: string,
+  getToken?: TokenGetter,
+): Promise<CollectionPage> {
+  const res = await request(`/api/v1/collection${query ? `?${query}` : ""}`, undefined, getToken);
+  return (await res.json()) as CollectionPage;
+}
+
+export type Selection = { item_ids?: string[]; filters?: Record<string, unknown> };
+
+export async function countSelection(
+  selection: Selection,
+  getToken?: TokenGetter,
+): Promise<number> {
+  const res = await request(
+    "/api/v1/collection/selection/count",
+    { method: "POST", body: JSON.stringify(selection) },
+    getToken,
+  );
+  return ((await res.json()) as { count: number }).count;
+}
+
+export async function bulkEdit(
+  body: Selection & { condition?: string; storage_location?: string; is_for_trade?: boolean },
+  getToken?: TokenGetter,
+): Promise<BulkResult> {
+  const res = await request(
+    "/api/v1/collection/bulk/edit",
+    { method: "POST", body: JSON.stringify(body) },
+    getToken,
+  );
+  return (await res.json()) as BulkResult;
+}
+
+export async function bulkDelete(
+  selection: Selection,
+  getToken?: TokenGetter,
+): Promise<BulkResult> {
+  const res = await request(
+    "/api/v1/collection/bulk/delete",
+    { method: "POST", body: JSON.stringify(selection) },
+    getToken,
+  );
+  return (await res.json()) as BulkResult;
+}
+
+export async function fetchSavedViews(getToken?: TokenGetter): Promise<SavedView[]> {
+  const res = await request("/api/v1/collection/views", undefined, getToken);
+  return (await res.json()) as SavedView[];
+}
+
+export async function createSavedView(
+  body: { name: string; filters: Record<string, unknown>; sort: string; density: string },
+  getToken?: TokenGetter,
+): Promise<SavedView> {
+  const res = await request(
+    "/api/v1/collection/views",
+    { method: "POST", body: JSON.stringify(body) },
+    getToken,
+  );
+  return (await res.json()) as SavedView;
+}
+
+export async function deleteSavedView(id: string, getToken?: TokenGetter): Promise<void> {
+  await request(
+    `/api/v1/collection/views/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    getToken,
+  );
+}
+
+export async function fetchMissing(
+  setCode: string,
+  getToken?: TokenGetter,
+): Promise<MissingReport> {
+  const res = await request(
+    `/api/v1/collection/missing/${encodeURIComponent(setCode)}`, undefined, getToken,
+  );
+  return (await res.json()) as MissingReport;
+}
+
+export async function fetchDashboard(getToken?: TokenGetter): Promise<DashboardData> {
+  const res = await request("/api/v1/dashboard", undefined, getToken);
+  return (await res.json()) as DashboardData;
+}
+
+export async function fetchHistory(
+  days: number,
+  getToken?: TokenGetter,
+): Promise<SnapshotPoint[]> {
+  const res = await request(
+    `/api/v1/collection/history${qs({ days })}`, undefined, getToken,
+  );
+  return ((await res.json()) as { items: SnapshotPoint[] }).items;
+}
+
 /** Operator-only, so this one *does* carry the token. */
 export async function fetchCatalogHealth(getToken?: TokenGetter): Promise<CatalogHealth> {
   const res = await request("/api/v1/admin/catalog/health", undefined, getToken);

@@ -9,9 +9,10 @@ import { AdminCatalogPage } from "../pages/AdminCatalog";
 import { CardDetailPage } from "../pages/CardDetail";
 import { DashboardPage } from "../pages/Dashboard";
 import {
-  CollectionPage, ImportExportPage, NotFoundPage,
+  ImportExportPage, NotFoundPage,
   Placeholder, SealedPage, WishlistPage,
 } from "../pages/Placeholder";
+import { CollectionPage } from "../pages/collection/Collection";
 import { AddCardsPage } from "../pages/collection/AddCards";
 import { AddFromSetPage } from "../pages/collection/AddFromSet";
 import { AddSessionProvider } from "../session/AddSessionContext";

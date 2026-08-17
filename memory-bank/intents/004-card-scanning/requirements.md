@@ -3,10 +3,22 @@ intent: 004-card-scanning
 phase: inception
 status: in-progress
 created: 2026-08-17T10:00:00Z
-updated: 2026-08-17T11:00:00Z
+updated: 2026-08-17T12:00:00Z
 ---
 
 # Requirements: Card Scanning
+
+> **Amended 2026-08-17**, after all seven open questions were answered at Checkpoint 2. Five were
+> resolved, two were deferred out of the intent entirely, and one changed the architecture.
+>
+> What changed: **FR-22 is new** — the matcher is a third backend, `scan-api`, not a worker pool in
+> the collection backend, which moves the capture store, the fingerprints, the curation console and
+> the dataset into their own schema and makes FR-14 a publication contract rather than a write.
+> **FR-14** is resolved and promoted to Must — public display of approved captures is permitted, on
+> the condition that an admin approved it first. **FR-18** is resolved with concrete redirect values
+> and turns out to need no platform code change. **FR-20** is re-cut to internal distribution only;
+> store submission leaves this intent. **FR-6** loses its V1.5 hedge — finish detection is a future
+> intent, not a later story here.
 
 ## Intent Overview
 
@@ -50,8 +62,9 @@ derived from measured accuracy on a labelled evaluation set, or it is not shown 
 | Accuracy | Top-1 card identity ≥ 90% and top-3 ≥ 98% on the evaluation set, for unsleeved undamaged cards | Must |
 | Honesty | 100% of displayed confidences derived from measured accuracy; 0 inventory writes below the reject floor without explicit user selection | Must |
 | The flywheel turns | ≥ 60% of scanned captures curated to a decision within 30 days; approved captures cover ≥ 80% of pilot-set printings within 90 days of launch | Must |
+| Catalog images exist | ≥ 80% of pilot-set printings display an approved image on `/cards/:id` within 90 days | Must |
 | Adoption | ≥ 40% of weekly-active collectors use a scan at least once a week | Should |
-| Catalog images exist | ≥ 80% of pilot-set printings display an approved image on `/cards/:id` within 90 days | Should |
+| Isolation | 0 user-facing incidents in the collection tracker caused by a `scan-api` failure | Must |
 
 ---
 
@@ -103,8 +116,9 @@ derived from measured accuracy on a labelled evaluation set, or it is not shown 
 - **Priority**: Must
 
 ### FR-4: Server pass — image match against the reference corpus
-- **Description**: Pass 2 uploads the frame and matches it against per-printing fingerprints —
-  perceptual hashes and embeddings — returning ranked printing candidates with distances.
+- **Description**: Pass 2 uploads the frame to `scan-api` (FR-22) and matches it against per-printing
+  fingerprints — perceptual hashes and embeddings — returning ranked printing candidates with
+  distances.
 - **Acceptance Criteria**: The endpoint accepts a single cropped frame and returns candidates ranked
   by a score that is converted to a calibrated confidence before display, never shown raw; matching
   is bounded work — a request that cannot complete within its budget returns partial candidates with
@@ -139,11 +153,11 @@ derived from measured accuracy on a labelled evaluation set, or it is not shown 
   **not** inferred from the image under any confidence.
 - **Priority**: Must
 
-> **Deliberate choice, open to challenge at review.** A two-frame tilt capture can detect foil from
-> the way a specular highlight moves, and it would remove this confirmation tap. It is not in V1
-> because the flywheel gets the same information for free — every user confirmation is a finish
-> label — and because the tilt heuristic could then be *validated* against real labels in V1.5
-> rather than shipped on the strength of an argument.
+> **Automatic finish detection is out of scope, by decision.** A two-frame tilt capture can detect
+> foil from the way a specular highlight moves, and a model trained on flywheel labels could learn it.
+> Both belong to a **future intent** covering recogniser V2 — decided 2026-08-17 — not to a later
+> story here. What this intent owes that intent is the labelled data: every user confirmation above,
+> including every correction, is a finish label recorded at the moment it is made.
 
 ### FR-7: Honest failure, with a way forward
 - **Description**: When no candidate clears the reject floor, the scan says so and hands the user the
@@ -161,10 +175,10 @@ derived from measured accuracy on a labelled evaluation set, or it is not shown 
 - **Acceptance Criteria**: Condition uses a **session carry-forward** default — the last condition
   used, shown persistently and changeable in one tap, matching the phase-1 fast-add behaviour;
   quantity defaults to 1 with a single-tap increment; the write goes through the existing inventory
-  write path and inherits its merge-on-duplicate invariant — scanning is a new *caller*, not a new
-  inventory semantic; scanning the same card twice in a session increments rather than creating a
-  second row; every scanned add is undoable through the existing delta-adjust endpoint (ADR-005) and
-  the undo carries the quantity it expects.
+  write path on the collection backend and inherits its merge-on-duplicate invariant — scanning is a
+  new *caller*, not a new inventory semantic, and `scan-api` never writes inventory; scanning the same
+  card twice in a session increments rather than creating a second row; every scanned add is undoable
+  through the existing delta-adjust endpoint (ADR-005) and the undo carries the quantity it expects.
 - **Priority**: Must
 
 ### FR-9: Reach the card from the scan
@@ -186,9 +200,9 @@ derived from measured accuracy on a labelled evaluation set, or it is not shown 
 - **Priority**: Should
 
 ### FR-11: The capture store — every scan retained with its prediction and its outcome
-- **Description**: Each capture is stored: the image, the engine passes that ran, the candidates each
-  returned, the confirmed printing if any, and the failure reason if not. This is the raw material of
-  the flywheel.
+- **Description**: Each capture is stored in `scan-api`'s own schema: the image, the engine passes
+  that ran, the candidates each returned, the confirmed printing if any, and the failure reason if
+  not. This is the raw material of the flywheel.
 - **Acceptance Criteria**: A capture is written for every scan attempt, accepted or failed, and is
   linked to exactly one printing **or** to none — there is no partial or guessed linkage; the stored
   prediction is what was actually shown to the user, so a later model change cannot rewrite history;
@@ -227,26 +241,33 @@ derived from measured accuracy on a labelled evaluation set, or it is not shown 
 - **Priority**: Must
 
 ### FR-14: Approved captures become the catalog's displayed images
-- **Description**: An approved capture can be promoted to the image shown for that printing on the
-  site, filling the gap left by a catalog that stores URLs and currently has none.
+- **Description**: An approved capture is promoted to the image shown for that printing on the site,
+  filling the gap left by a catalog that stores URLs and currently has none. **Public display is
+  permitted only after an admin has approved the image** — decided 2026-08-17.
 - **Acceptance Criteria**: Exactly one approved image per printing is marked as the display image, and
-  it is replaceable; the display image is served from storage-api with an immutable object key, the
-  path already anticipated by the data model's image-rights note; a printing with no approved image
-  renders the existing honest empty state, never a placeholder that implies the image is missing by
-  accident; promotion is an admin action and never automatic, because a technically correct match can
-  still be an unusable photograph; the contributor is credited or anonymous by their own choice.
-- **Priority**: Should
+  it is replaceable; **no image is displayed to any user before an admin approval exists** — the
+  approval is the gate, enforced in the published projection rather than only in the UI, so a client
+  cannot request an unapproved image by id; the display image is served from storage-api with an
+  immutable object key, the path already anticipated by the data model's image-rights note; `scan-api`
+  publishes approved display images as a read-only projection the collection backend reads, and does
+  **not** write to the `elestrals` schema (FR-22); a printing with no approved image renders the
+  existing honest empty state, never a placeholder that implies the image is missing by accident;
+  promotion is an admin action and never automatic, because a technically correct match can still be
+  an unusable photograph; the contributor is credited or anonymous by their own choice.
+- **Priority**: Must
 
-> **This is the FR with unresolved legal exposure.** A collector's photograph of a card still
-> contains the publisher's artwork; displaying it publicly is a reproduction whoever pressed the
-> shutter. Private use of the same images — matching and training — is materially weaker exposure
-> than publication. The two halves are separated here on purpose so that the display half can be
-> held back without stalling the flywheel. See Open Questions.
+> **Resolved, with the condition recorded.** A collector's photograph of a card still contains the
+> publisher's artwork, so displaying it publicly is a reproduction whoever pressed the shutter. The
+> decision taken on 2026-08-17 is that this is acceptable **once an admin has approved the image**,
+> which makes the exposure deliberate and reviewed rather than automatic and unbounded. The risk
+> acceptance, its owner and its review triggers go in an ADR alongside FR-16's, in the mould of
+> ADR-004. Promoted from Should to Must because it is the only route by which the catalog ever has
+> images at all.
 
 ### FR-15: The labelled dataset and the evaluation harness
 - **Description**: Curated captures accumulate into a versioned labelled dataset, and a repeatable
   harness measures the recogniser against a held-out slice of it. This is what makes FR-5's
-  percentages real.
+  percentages real, and it is what a future V2 intent trains on.
 - **Acceptance Criteria**: A dataset version is an immutable snapshot with a manifest, so an accuracy
   figure names the data it was measured on; the evaluation slice is held out and never indexed into
   the matching corpus, and the split is by *printing* as well as by image so the same card
@@ -254,7 +275,8 @@ derived from measured accuracy on a labelled evaluation set, or it is not shown 
   overall and per confidence band, plus a calibration table of predicted-versus-actual; a released
   change to either engine cannot ship without a harness run recorded against it; the harness runs on
   the pilot set from the day FR-1 completes, so there is never a period during which accuracy is
-  asserted rather than measured.
+  asserted rather than measured; a dataset version is exportable, because the V2 intent that trains
+  on it may not run inside this codebase.
 - **Priority**: Must
 
 ### FR-16: Seeded reference images — an accepted risk, bounded and shrinking
@@ -277,30 +299,41 @@ derived from measured accuracy on a labelled evaluation set, or it is not shown 
 > that choice, not decoration.
 
 ### FR-17: Consent, moderation and takedown for submitted images
-- **Description**: Users submit photographs. If those photographs may be published or used for
-  training, the terms must say so, and there must be a way out.
+- **Description**: Users submit photographs. Those photographs may be published after approval and
+  used for training, so the terms must say so, and there must be a way out.
 - **Acceptance Criteria**: Capture upload is preceded by a stated, versioned consent covering
-  retention, curation, training use and possible public display, and the accepted version is recorded
-  per user; consent for *training* and consent for *public display* are separately withdrawable,
-  because they are materially different asks; withdrawal removes the image from the corpus and from
-  any display within a stated window and is verified by a test, not by a promise; an image that
-  reaches the queue containing a person or anything other than a card is rejected and deleted under
-  FR-13; a takedown request from a rights holder can remove a printing's images site-wide in one
-  action.
+  retention, curation, training use and possible public display after approval, and the accepted
+  version is recorded per user; consent for *training* and consent for *public display* are separately
+  withdrawable, because they are materially different asks; withdrawal removes the image from the
+  corpus and from any display within a stated window and is verified by a test, not by a promise; an
+  image that reaches the queue containing a person or anything other than a card is rejected and
+  deleted under FR-13; a takedown request from a rights holder can remove a printing's images
+  site-wide in one action.
 - **Priority**: Must
 
 ### FR-18: The mobile app signs in against the platform
 - **Description**: A native Expo / React Native client authenticating through the platform's
-  `login-api` with Authorization Code + PKCE, holding no secret.
-- **Acceptance Criteria**: The flow uses a native redirect (custom scheme or universal link)
-  registered on `login-api` for this client — a dependency outside this repository and a gate on this
-  unit; tokens are stored in the platform keystore (Keychain / Keystore), never in
-  `AsyncStorage`; refresh is silent and a failed refresh returns to sign-in without losing a queued
-  batch session; the app holds the public `client_id` only, and no M2M credential ever reaches the
-  device; the same JWT validation and `user_sub` scoping serves mobile and web, so mobile adds no new
-  trust path into the backend; theme and language come from the same resolved branding and i18n
-  sources as the web app.
+  `login-api` with Authorization Code + PKCE, holding no secret. **Verified 2026-08-17 to need no
+  platform code change** — only a client registration.
+- **Acceptance Criteria**: A **new public client** is registered on `login-api`, separate from the web
+  SPA's client so that revoking one does not affect the other, with `redirect_uris` containing exactly
+  `elestrals://oauthredirect` and `allowed_grant_types` of `authorization_code` and `refresh_token`
+  but **not** `client_credentials`; the app sends `code_challenge_method=S256`, which `login-api`
+  requires, and sends a `redirect_uri` byte-identical to the registered string at both `/authorize`
+  and `/token` — it is validated in both places; tokens are stored in the platform keystore (Keychain
+  / Keystore), never in `AsyncStorage`; refresh is silent and a failed refresh returns to sign-in
+  without losing a queued batch session; the app holds the public `client_id` only, and no M2M
+  credential ever reaches the device; the same JWT validation and `user_sub` scoping serves mobile and
+  web, so mobile adds no new trust path into either backend; theme and language come from the same
+  resolved branding and i18n sources as the web app.
 - **Priority**: Must
+
+> **Verified against the platform source, not assumed.** `authorization_service.py:74` matches
+> `redirect_uri` by exact string membership in a JSON allowlist with no scheme restriction, so a
+> custom scheme is accepted. `token_service.py:84` exchanges an authorization code with **no
+> `client_secret`** — only `client_credentials` requires one (`token_service.py:205`). PKCE `S256` is
+> mandatory at both ends. The mobile client is therefore the same *kind* of client as the existing web
+> SPA, and this requirement is a config row rather than a platform change.
 
 ### FR-19: The mobile app's read-only collection
 - **Description**: Beyond scanning, the app answers "do I already own this?" — browse and search the
@@ -313,29 +346,62 @@ derived from measured accuracy on a labelled evaluation set, or it is not shown 
   with no signal is not a dead app.
 - **Priority**: Must
 
-### FR-20: A release path for the mobile app
-- **Description**: The app can be built, distributed to testers, and updated without a store round
-  trip for JavaScript-only changes.
-- **Acceptance Criteria**: A reproducible build produces iOS and Android artifacts from CI, not from a
-  laptop; internal distribution to testers exists before any public store submission; JS-only updates
-  ship over the air, and the over-the-air channel is pinned to a native runtime version so an update
-  cannot land on an incompatible binary; the app reports its version and build to the backend so a
-  bug report identifies what was running; the release path is documented alongside the platform's
-  existing compose-based deployment rather than invented separately.
+### FR-20: An internal release path for the mobile app
+- **Description**: The app can be built reproducibly and distributed to testers. **Public store
+  submission is out of scope for this intent** — the developer accounts do not exist, and the
+  trademark question that gates a store listing is unanswered.
+- **Acceptance Criteria**: A reproducible build produces an **Android** artifact from CI, not from a
+  laptop, and installs on a tester's device with no developer account of any kind; the iOS build is
+  defined and buildable but is **explicitly gated on an Apple signing identity** and is not a
+  precondition for this intent completing; JS-only updates ship over the air, and the over-the-air
+  channel is pinned to a native runtime version so an update cannot land on an incompatible binary;
+  the app reports its version and build to the backend so a bug report identifies what was running;
+  the release path is documented alongside the platform's existing compose-based deployment rather
+  than invented separately; no requirement here depends on an App Store or Play listing.
 - **Priority**: Must
+
+> **Re-cut 2026-08-17.** Android internal distribution needs no developer account, so it carries the
+> whole intent. iOS needs an Apple signing identity even for internal device installs, which does not
+> exist yet. Store listing — and the trademark permission it requires — moves to a future intent
+> together with the accounts.
 
 ### FR-21: The web camera flow
 - **Description**: The existing web app gains camera capture, using the same engine, the same
   contract and the same confirmation flow.
 - **Acceptance Criteria**: Capture uses the browser camera and degrades to file upload where camera
   access is unavailable or refused; the identification contract is **identical** to mobile's — the
-  same endpoint, the same candidate shape, the same calibrated confidence — so a divergence in
-  behaviour between surfaces is a bug rather than a platform difference; the on-device pass runs in
+  same `scan-api` endpoint, the same candidate shape, the same calibrated confidence — so a divergence
+  in behaviour between surfaces is a bug rather than a platform difference; the on-device pass runs in
   the browser where support allows and otherwise escalates to the server pass immediately, reporting
   which passes ran; cropping and EXIF stripping (FR-12) apply identically in the browser; the flow is
   reachable from the existing add-to-collection surfaces as a third entry mode beside fast-add and the
   set grid.
 - **Priority**: Must
+
+### FR-22: The matcher is a third backend
+- **Description**: Identification runs as its own deployable service, **`scan-api`**, owning the
+  `elestrals_scan` schema on the same MySQL instance. It reads the catalog cross-schema, read-only,
+  holds the fingerprints, the captures, the curation decisions and the dataset, and publishes approved
+  display images for the collection backend to read. Decided 2026-08-17, replacing a bounded worker
+  pool inside the collection backend.
+- **Acceptance Criteria**: `scan-api` has its own container, its own Alembic tree and its own schema;
+  it holds **no write grant** on the `elestrals` schema, enforced by the database user's privileges
+  rather than by convention, and the collection backend holds no write grant on `elestrals_scan`;
+  clients call `scan-api` **directly** for identification rather than through a proxy, and it validates
+  the same platform JWT via JWKS with the same `user_sub` scoping, so it adds no new trust path;
+  `scan-api` being down degrades scanning to the on-device pass and returns no error from any
+  `/collection` request; the approved-display-image projection is the **only** `scan-api` data the
+  collection backend reads, exposed as a read-only view or published table and never as a join into
+  `scan-api`'s private tables; all three services are brought up by the same compose stack and the
+  same release workflow.
+- **Priority**: Must
+
+> **Why a third service and not a worker pool.** Embedding and matching are CPU-heavy on a user's
+> latency budget, and the capture corpus grows to hundreds of gigabytes with a curation console and a
+> dataset pipeline attached — none of which the collection backend should carry. This follows intent
+> 002's FR-13 precedent exactly, including the grant-enforced boundary and the single published
+> contract, with one deliberate difference: `harvest-api` is never on a user's request path and
+> `scan-api` always is, so its isolation requirement is about *latency* as much as availability.
 
 ---
 
@@ -383,10 +449,12 @@ a named dataset version, and a release that cannot produce these numbers has not
 | Requirement | Standard | Notes |
 |---|---|---|
 | Capture ownership | `user_sub` from the validated JWT | a capture is readable by its owner and an admin; every repository method takes `user_sub` first, as in phase 1 |
-| Curation | `elestrals:admin` scope | the same single dependency as intent 002's admin routes; `403` with no body detail, never a filtered `200` |
+| Curation | `elestrals:admin` scope | confirmed available 2026-08-17; the same single dependency as intent 002's admin routes; `403` with no body detail, never a filtered `200` |
+| Service isolation | database grants | `scan-api` has no write grant on `elestrals`; the collection backend has none on `elestrals_scan` |
 | Mobile credentials | public `client_id` only | no M2M secret on a device, ever; tokens in the platform keystore |
 | Upload validation | content type, magic bytes, dimensions, size | an upload endpoint is an attack surface; a decoded image is re-encoded server-side before storage |
 | Server-side crop verification | enforced | client-side cropping is a privacy feature, not a security boundary |
+| Unapproved images | not addressable | the approval gate lives in the published projection, so an unapproved image cannot be fetched by id |
 | Identity in curation | withheld | the admin queue shows the card, never the submitter |
 
 ### Privacy
@@ -404,7 +472,7 @@ a named dataset version, and a release that cannot produce these numbers has not
 | Requirement | Metric | Target |
 |---|---|---|
 | Offline scanning | on-device pass with a current index | fully functional, adds queue locally |
-| Server pass unavailable | behaviour | ladder degrades to on-device only, states that it did, never blocks the add |
+| `scan-api` unavailable | behaviour | ladder degrades to on-device only, states that it did, never blocks the add, and never fails a `/collection` request |
 | Queued adds | after reconnect | reconciled; a conflicting queued add surfaces rather than being dropped |
 | Corpus rebuild | fingerprint index from stored images | fully regenerable |
 | Backgrounded app | batch session | survives and resumes |
@@ -414,9 +482,9 @@ a named dataset version, and a release that cannot produce these numbers has not
 | Requirement | Standard | Notes |
 |---|---|---|
 | Reference image rights | accepted risk, named owner, bounded and shrinking (FR-16) | requires a new ADR; amends `data-model.md`'s "URLs never bytes" note and qualifies ADR-001 |
-| Published user images | unresolved | FR-14 carries an open question; private training use and public display are separated so display can be withheld |
+| Published user images | permitted **after admin approval** (FR-14) | decided 2026-08-17; the risk acceptance and its owner are recorded in an ADR |
 | User-generated content | consent, moderation, takedown (FR-17) | required before any capture is displayed publicly |
-| Store distribution | third-party trademark in a store listing | an app named for someone else's TCG can be refused; see Open Questions |
+| Store distribution | out of scope | no store listing in this intent, so the trademark question does not gate it |
 | No recurring data cost | inherited from ADR-004 | rules out a paid third-party recognition API; the engine is ours |
 
 ---
@@ -432,27 +500,28 @@ a named dataset version, and a release that cannot produce these numbers has not
   build and release path. TypeScript types and Zod schemas are shared with the web app; **MUI
   components are not** — the mobile UI is built, not ported. This is accepted as the price of a real
   camera and on-device recognition.
+- **Three backends, one MySQL instance, three schemas.** `scan-api` owns `elestrals_scan`;
+  `harvest-api` owns `elestrals_harvest`; `elestrals` stays owned by the collection backend. Separate
+  Alembic trees; no service migrates another's schema. Cross-schema reads are read-only and
+  one-directional in each case.
 - **One identification contract, two callers.** The endpoint, the candidate shape and the confidence
   semantics are identical for mobile and web. A behaviour that differs between surfaces is a defect.
-- **The matcher lives in the collection backend**, which owns the catalog, behind a bounded worker
-  pool so embedding work cannot starve request handlers. It splits into its own service only if
-  measured CPU contention shows it must — the trigger is written down, not left to taste. This is
-  deliberately *not* the second-backend pattern of intent 002's FR-13: that isolated a job that could
-  be blocked or slow, whereas this sits on a user's latency budget and belongs next to the catalog.
 - **Capture rows are append-only.** A curation decision is a new row. A prediction, once shown to a
   user, is history and is not rewritten by a later model.
 - **No figure without its confidence**, and no confidence that is not measured — FR-5 and FR-15 are a
   pair, and the second is what makes the first honest.
+- **Android carries the mobile intent; iOS is defined but gated.** No requirement completes only on
+  iOS.
 - **Two ADRs are required before construction**: the seeded-reference-image accepted risk (FR-16), and
-  the capture corpus becoming displayed catalog images (FR-14). Both amend the data model's
-  image-rights note; ADR numbering continues from ADR-005.
+  the public display of user-submitted card photographs after approval (FR-14). Both amend the data
+  model's image-rights note. ADR numbering continues from ADR-005.
 
 ### Business Constraints
 - **No recurring data cost** (ADR-004). No paid recognition API, no per-scan vendor fee.
 - **The pilot set is compiled by hand** and not scraped (ADR-001). The scanner's coverage is bounded by
   that work, and that is accepted rather than worked around.
-- The mobile app cannot reach a public store without resolving the trademark question. Internal
-  distribution to testers is the path that does not depend on it.
+- **No app store presence in this intent.** Developer accounts do not exist and the trademark question
+  is unanswered; internal Android distribution is the path that depends on neither.
 
 ---
 
@@ -462,11 +531,11 @@ a named dataset version, and a release that cannot produce these numbers has not
 |---|---|---|
 | On-device OCR reads an Elestrals card's name and collector number reliably enough for a closed-vocabulary match | The whole ladder rests on pass 2, latency triples and offline scanning dies | Verified on real photographs during the pilot unit, before the mobile app is built. This is the intent's spike and it comes first |
 | Collector number plus set uniquely determines a card in our catalog | Candidate lists stay ambiguous where they should be certain | Already true of the schema — `UNIQUE (set_id, collector_number)`. Verified against the compiled pilot set |
-| Users will confirm a printing rather than abandoning the flow at the extra tap | The flywheel receives no finish labels and V2 cannot learn finish | Pre-selection makes the common case one tap; the tap is measured, and if it is where sessions die, the tilt heuristic of FR-6 is promoted |
+| Users will confirm a printing rather than abandoning the flow at the extra tap | The flywheel receives no finish labels and the V2 intent has nothing to train on | Pre-selection makes the common case one tap; the tap is measured, and a high abandonment rate becomes evidence for the V2 intent rather than a change here |
 | Enough users scan enough cards to grow the corpus | Coverage stays at whatever we photographed ourselves | The pilot set is fully photographed by us, so the product works at launch without any user contribution |
-| The platform can issue an `elestrals:admin` scope | FR-13's curation console falls back to a `sub` allowlist, which is a development convenience and not an authorisation system | Carried open question from intent 002, now gating a second intent's console. Confirm before the curation unit |
-| `login-api` can register a native redirect URI for a mobile client | FR-18 has no compliant auth flow and the mobile app cannot ship | Confirm with the platform before the mobile unit starts. There is no in-repo workaround worth having |
 | A cropped card photograph is enough for reliable image matching | Pass 2's accuracy target is unreachable and the ladder is OCR-only in practice | Measured by FR-15's harness on the pilot set before the corpus is grown beyond it |
+| ~~The platform can issue an `elestrals:admin` scope~~ | — | **Resolved 2026-08-17: yes.** This also resolves the same question carried open by intent 002 |
+| ~~`login-api` can register a native redirect URI~~ | — | **Resolved 2026-08-17: yes**, and verified in the platform source — exact-string allowlist, no scheme restriction, and the code exchange needs no client secret |
 
 ---
 
@@ -474,13 +543,14 @@ a named dataset version, and a release that cannot produce these numbers has not
 
 | Question | Owner | Due | Resolution |
 |---|---|---|---|
-| Can `login-api` register a native redirect URI (custom scheme or universal link) for an Expo client? | Lars | before the mobile unit | **Pending** — hard gate on FR-18 |
-| Can the platform issue an `elestrals:admin` scope? | Lars | before the curation unit | **Pending** — carried from intent 002, now gating two consoles |
-| May we publicly display user-submitted photographs of copyrighted cards on `/cards/:id`? | Lars | before FR-14 ships | **Pending** — FR-14 is separated from FR-15 precisely so training use can proceed while this is open |
-| Can an app named for the Elestrals TCG be listed on the App Store and Play without the rights holder's permission? | Lars | before public store submission | **Pending** — internal distribution does not depend on it; the same trademark question already sits open in intent 003 |
-| Who owns the Apple Developer and Google Play accounts, and under what entity? | Lars | before FR-20 | **Pending** |
-| Which finish-detection approach for V2 — tilt-capture heuristic, or a model trained on flywheel labels? | Lars | after the first labelled dataset version | **Deferred by design** — the point of FR-15 is that this becomes a measurement rather than an argument |
-| Does the matcher need its own service, or does a bounded worker pool in the collection backend hold? | Lars | during the matcher unit | **Pending** — decide on measured contention, per the constraint above |
+| Can `login-api` register a native redirect URI for an Expo client? | Lars | — | **Resolved 2026-08-17** — yes. `elestrals://oauthredirect` on a new public client; verified against `authorization_service.py:74` and `token_service.py:84` |
+| Can the platform issue an `elestrals:admin` scope? | Lars | — | **Resolved 2026-08-17** — yes. Also unblocks intent 002's FR-14 and bolt 013 |
+| May we publicly display user-submitted photographs of copyrighted cards? | Lars | — | **Resolved 2026-08-17** — yes, **after admin approval**. Recorded as an accepted risk in an ADR |
+| Does the matcher need its own service? | Lars | — | **Resolved 2026-08-17** — yes. `scan-api`, third backend, own schema (FR-22) |
+| Store listing, developer accounts, and trademark permission | Lars | future intent | **Deferred 2026-08-17** — accounts do not exist; store distribution leaves this intent |
+| Automatic finish detection — tilt heuristic or a trained model | Lars | future intent | **Deferred 2026-08-17** — recogniser V2 is its own intent; this intent produces its training data |
+| Does an Apple signing identity become available, and under what entity? | Lars | before an iOS build ships | **Pending** — does not gate this intent completing (FR-20) |
+| Which Elestrals set is the pilot — FE01, or one you own more completely? | Lars | before unit 001 | **Pending** — FE01 assumed; a set you can photograph end to end is worth more than the first set numerically |
 
 ---
 

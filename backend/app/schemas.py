@@ -345,6 +345,158 @@ class CompletionResponse(BaseModel):
     total_quantity: int
 
 
+# --- browse (bolt 006) ---------------------------------------------------------------
+
+
+class CollectionRow(BaseModel):
+    """A table row. Carries the catalog fields the table renders, so drawing 50 rows is one
+    request rather than one plus fifty — the difference between a table and a waterfall."""
+
+    id: str
+    printing_id: str
+    card_id: str
+    name: str
+    set_code: str
+    collector_number: str
+    element: str | None
+    rarity: str
+    finish: str
+    language: str
+    edition: str
+    image_url: str | None
+    alt_text: str
+    condition: CONDITION
+    quantity: int
+    is_graded: bool
+    grader: str | None
+    grade: float | None
+    storage_location: str | None
+    is_for_trade: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class CollectionPageResponse(BaseModel):
+    items: list[CollectionRow]
+    #: Matching the filter, not returned in this page. Story 020 requires it always visible.
+    total: int
+    next_cursor: str | None
+    #: Echoed back so the client can prove the URL it holds and the rows it got agree — and so a
+    #: saved view applied from the rail can be diffed against what is actually in effect.
+    filters: dict[str, object]
+    sort: str
+
+
+class SelectionModel(BaseModel):
+    """A bulk selection: explicit ids, or the filter that describes them.
+
+    Both, deliberately. "These four" and "all 4,000 Fire holos" are both real selections, and
+    story 022 rules out putting 10,000 ids on the wire for the second one.
+    """
+
+    item_ids: list[str] | None = Field(default=None, max_length=5_000)
+    filters: dict[str, object] | None = None
+
+
+class BulkEditRequest(SelectionModel):
+    condition: CONDITION | None = None
+    storage_location: str | None = Field(default=None, max_length=64)
+    is_for_trade: bool | None = None
+
+
+class BulkFailureModel(BaseModel):
+    item_id: str
+    reason: str
+    code: str
+
+
+class BulkResultResponse(BaseModel):
+    requested: int
+    applied: int
+    #: Named, one by one. Story 022: a partial failure must say which rows and why — a silent
+    #: partial leaves a collector not knowing what happened to their collection.
+    failures: list[BulkFailureModel]
+    partial: bool
+
+
+class SavedViewModel(BaseModel):
+    id: str
+    name: str
+    filters: dict[str, object]
+    sort: str
+    density: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class SavedViewWrite(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    filters: dict[str, object] = Field(default_factory=dict)
+    sort: str = "added_desc"
+    density: str = "comfortable"
+
+
+class SavedViewPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=64)
+    filters: dict[str, object] | None = None
+    sort: str | None = None
+    density: str | None = None
+
+
+class MissingCardModel(BaseModel):
+    card_id: str
+    collector_number: str
+    name: str
+    element: str | None
+    rarity: str | None
+    printing_id: str | None
+
+
+class MissingResponse(BaseModel):
+    set_code: str
+    set_name: str
+    card_count: int
+    owned_cards: int
+    #: Cards with no owned printing **at any condition**. Per card, not per printing — owning the
+    #: common version means the card is not missing.
+    missing: list[MissingCardModel]
+
+
+class DashboardValueModel(BaseModel):
+    total_cents: int
+    currency: str
+    confidence: str
+    valued_items: int
+    total_items: int
+
+
+class DashboardResponse(BaseModel):
+    total_items: int
+    distinct_printings: int
+    sets_started: int
+    #: `null` means "not available", which the tile renders in words. **Never 0** — a zero is a
+    #: claim about what a collection is worth, and until phase 2 prices it, a false one.
+    value: DashboardValueModel | None
+    rings: list[SetCompletionModel]
+    recent: list[CollectionRow]
+    #: Sent rather than inferred from four zeroes, because the onboarding state is what every new
+    #: user sees first and inferring it is how they get shown a dashboard of noughts instead.
+    is_empty: bool
+
+
+class SnapshotModel(BaseModel):
+    taken_on: date
+    item_count: int
+    distinct_printings: int
+    total_value_cents: int | None
+    currency: str
+    valuation_confidence: str
+
+
+class SnapshotHistoryResponse(BaseModel):
+    items: list[SnapshotModel]
+
+
 class CatalogHealth(BaseModel):
     sources: list[SourceHealth]
     #: Sets whose imported count is short of the declared printed size.

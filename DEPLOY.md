@@ -124,6 +124,37 @@ curl http://127.0.0.1:9530/api/v1/health     # through the nginx proxy
 docker compose ps                            # both should read (healthy)
 ```
 
+## The nightly snapshot — set this up on day one
+
+`elestrals-api` has exactly one scheduled job, and it is the one thing in phase 1 whose value
+depends on having run *in the past*:
+
+```bash
+docker compose exec elestrals-api python -m app.jobs --snapshot
+```
+
+It writes one `collection_snapshots` row per user per day: how many cards they hold and how many
+distinct printings. **Nothing in phase 1 reads it.** Phase 2's portfolio chart does, and the counts
+for 3 March exist only if something wrote them on 3 March — so a night missed is a permanent hole in
+somebody's history. `--on YYYY-MM-DD` fills a gap, but only with the *current* collection, which
+makes it a repair tool rather than a way to reconstruct the past.
+
+Add it to `cron` on the host, shortly after midnight UTC:
+
+```
+15 0 * * *  cd /path/to/elestrals && docker compose exec -T elestrals-api python -m app.jobs --snapshot
+```
+
+Safe to run twice — `uq_collection_snapshot_user_day` makes a second run an update, and the update
+deliberately leaves `total_value_cents` alone so re-running cannot blank a day phase 2 has valued.
+There is no Celery here on purpose: one job that finishes in seconds does not justify a broker.
+
+The same entrypoint carries the projection repair tool, if `set_completion` is ever wrong:
+
+```bash
+docker compose exec elestrals-api python -m app.jobs --rebuild-completion <user_sub>
+```
+
 ## Running the harvester by hand
 
 The scrapers run on a beat schedule, but every step of the pipeline can be driven manually — which

@@ -71,6 +71,10 @@ class InventoryItem(Base, UuidPrimaryKeyMixin, TimestampMixin):
         CheckConstraint("quantity > 0", name="ck_inventory_quantity_positive"),
         Index("ix_inventory_user_printing", "user_sub", "printing_id"),
         Index("ix_inventory_user_created", "user_sub", "created_at"),
+        # The collection table's keyset cursor sorts on `(created_at DESC, id ASC)`. Without `id`
+        # in the index the tie-break is a filesort, exactly at the 10,000-row scale story 019
+        # targets. See `browse()` in the repository.
+        Index("ix_inventory_user_created_id", "user_sub", "created_at", "id"),
     )
 
     @staticmethod

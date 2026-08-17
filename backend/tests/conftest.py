@@ -28,10 +28,12 @@ from app.models import (  # noqa: F401
     app_log,
     card,
     catalog_import,
+    collection_snapshot,
     import_rejection,
     inventory_item,
     price_daily,
     printing,
+    saved_view,
     sealed_product,
     user_profile,
 )

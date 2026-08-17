@@ -23,11 +23,16 @@ from ..services.catalog_read_service import (
     SetBrowseService,
 )
 from ..services.catalog_upsert import CatalogUpsert
+from ..services.collection_browse_service import CollectionBrowseService
+from ..services.bulk_service import BulkService
 from ..services.completion_service import CompletionService
 from ..services.coverage_service import CoverageService
+from ..services.dashboard_service import DashboardService
 from ..services.inventory_service import InventoryService
 from ..services.import_runner import ImportRunner
 from ..services.profile_service import ProfileService
+from ..services.saved_view_service import SavedViewService
+from ..services.snapshot_service import SnapshotService
 from ..services.valuation_service import ValuationService
 from .db import get_db
 
@@ -183,3 +188,45 @@ def valuation_service(
     prices: PriceRepository = Depends(price_repository),
 ) -> ValuationService:
     return ValuationService(prices)
+
+
+# --- Browse (bolt 006) ---------------------------------------------------------------
+
+def collection_browse_service(
+    items: InventoryRepository = Depends(inventory_repository),
+    cards: CardRepository = Depends(card_repository),
+    sets: SetRepository = Depends(set_repository),
+) -> CollectionBrowseService:
+    return CollectionBrowseService(items, cards, sets)
+
+
+def bulk_service(
+    items: InventoryRepository = Depends(inventory_repository),
+    inventory: InventoryService = Depends(inventory_service),
+) -> BulkService:
+    return BulkService(items, inventory)
+
+
+def saved_view_service(db: Session = Depends(get_db)) -> SavedViewService:
+    return SavedViewService(db)
+
+
+def dashboard_service(
+    items: InventoryRepository = Depends(inventory_repository),
+    completion: CompletionService = Depends(completion_service),
+    prices: PriceRepository = Depends(price_repository),
+) -> DashboardService:
+    return DashboardService(items, completion, prices)
+
+
+def make_snapshot_service(db: Session) -> SnapshotService:
+    """From a bare session, because the nightly job runs outside FastAPI's DI graph.
+
+    Same shape as `make_import_runner`, and for the same reason: the scheduled path and any
+    hand-run path must be the same object graph rather than two wirings that drift.
+    """
+    return SnapshotService(db)
+
+
+def snapshot_service(db: Session = Depends(get_db)) -> SnapshotService:
+    return make_snapshot_service(db)
