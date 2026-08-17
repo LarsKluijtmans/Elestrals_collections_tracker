@@ -1,9 +1,9 @@
 ---
 intent: 004-card-scanning
 phase: inception
-status: in-progress
-created: 2026-08-17T10:00:00Z
-updated: 2026-08-17T12:00:00Z
+status: units-defined
+created: '2026-08-17T10:00:00Z'
+updated: '2026-08-17T12:00:00Z'
 ---
 
 # Requirements: Card Scanning

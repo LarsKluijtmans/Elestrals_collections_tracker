@@ -2,7 +2,7 @@
 unit: 007-scan-experience
 intent: 004-card-scanning
 phase: inception
-status: draft
+status: stories-defined
 created: '2026-08-17T13:30:00Z'
 updated: '2026-08-17T13:30:00Z'
 ---

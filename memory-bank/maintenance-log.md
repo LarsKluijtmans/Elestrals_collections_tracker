@@ -167,3 +167,40 @@ Checkpoint 1 — and is **not listed in `project.yaml`**. Neither script looks a
 bolts, so nothing was going to notice. Registered in `project.yaml` as part of this pass.
 
 ---
+
+## 2026-08-17T18:46:05.122Z - Status Sync
+
+**Triggered by**: status-integrity script
+
+| Artifact | Old Status | New Status | Reason |
+|----------|------------|------------|--------|
+| memory-bank\intents\001-collection-tracker\units\005-sealed-and-wishlist\stories\025-sealed-inventory.md | ready (not implemented) | complete, implemented: true | Bolt 007-sealed-and-wishlist is complete but story is not marked complete |
+| memory-bank\intents\001-collection-tracker\units\005-sealed-and-wishlist\stories\026-wishlist.md | ready (not implemented) | complete, implemented: true | Bolt 007-sealed-and-wishlist is complete but story is not marked complete |
+| memory-bank\intents\001-collection-tracker\units\001-platform-foundation\unit-brief.md | in-progress | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\001-collection-tracker\units\002-card-catalog\unit-brief.md | in-progress | stories-defined | Unit has 2 bolts (0/2 complete) |
+| memory-bank\intents\001-collection-tracker\units\004-collection-experience\unit-brief.md | in-progress | stories-defined | Unit has 2 bolts (0/2 complete) |
+| memory-bank\intents\001-collection-tracker\units\005-sealed-and-wishlist\unit-brief.md | stories-defined | complete | Unit has 1 bolts (1/1 complete) |
+| memory-bank\intents\004-card-scanning\units\001-pilot-catalog\unit-brief.md | draft | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\004-card-scanning\units\002-scan-service\unit-brief.md | draft | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\004-card-scanning\units\003-identification-engine\unit-brief.md | draft | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\004-card-scanning\units\004-evaluation-and-dataset\unit-brief.md | draft | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\004-card-scanning\units\005-curation-console\unit-brief.md | draft | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\004-card-scanning\units\006-mobile-app\unit-brief.md | draft | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\004-card-scanning\units\007-scan-experience\unit-brief.md | draft | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\004-card-scanning\requirements.md | in-progress | units-defined | Intent has 7 units (0/7 complete) |
+
+---
+
+
+## 2026-08-17 (evening) — one residual, and it is the known one
+
+After bolts 006–009 and the phase-2 completion, `status-integrity.cjs` reports **1** inconsistency,
+down from 5:
+
+| Artifact | Script wants | Is | Why it stays |
+|---|---|---|---|
+| 001-collection-tracker / requirements.md | `units-defined` | `construction` | the same `partial`-blindness recorded above. Two of seven units are `complete`; the other five contain `partial` bolts, which the script's `complete / in-progress / planned` vocabulary cannot see, so it falls through to the least-advanced branch. Intent 001 is unambiguously in construction |
+
+The other four resolved themselves as units genuinely completed. `artifact-validator.cjs` → **0**.
+
+Expect this one row on every run until the script learns `partial`.

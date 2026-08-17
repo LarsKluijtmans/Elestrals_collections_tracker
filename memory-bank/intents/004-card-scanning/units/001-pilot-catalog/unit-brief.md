@@ -2,7 +2,7 @@
 unit: 001-pilot-catalog
 intent: 004-card-scanning
 phase: inception
-status: draft
+status: stories-defined
 created: '2026-08-17T13:00:00Z'
 updated: '2026-08-17T13:00:00Z'
 ---

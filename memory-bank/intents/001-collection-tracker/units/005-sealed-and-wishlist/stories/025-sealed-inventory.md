@@ -2,11 +2,11 @@
 id: 025-sealed-inventory
 unit: 005-sealed-and-wishlist
 intent: 001-collection-tracker
-status: ready
+status: complete
 priority: must
-created: 2026-08-09T12:00:00Z
+created: '2026-08-09T12:00:00Z'
 assigned_bolt: 007-sealed-and-wishlist
-implemented: false
+implemented: true
 ---
 
 # Story: 025-sealed-inventory

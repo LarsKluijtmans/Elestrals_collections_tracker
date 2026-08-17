@@ -2,7 +2,7 @@
 unit: 004-collection-experience
 intent: 001-collection-tracker
 phase: inception
-status: in-progress
+status: stories-defined
 created: '2026-08-09T12:00:00Z'
 updated: '2026-08-09T12:00:00Z'
 ---

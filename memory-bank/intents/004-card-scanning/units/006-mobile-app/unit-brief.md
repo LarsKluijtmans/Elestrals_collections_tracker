@@ -2,7 +2,7 @@
 unit: 006-mobile-app
 intent: 004-card-scanning
 phase: inception
-status: draft
+status: stories-defined
 created: '2026-08-17T13:25:00Z'
 updated: '2026-08-17T13:25:00Z'
 ---

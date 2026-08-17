@@ -2,7 +2,7 @@
 unit: 005-sealed-and-wishlist
 intent: 001-collection-tracker
 phase: inception
-status: stories-defined
+status: complete
 created: '2026-08-09T12:00:00Z'
 updated: '2026-08-09T12:00:00Z'
 ---

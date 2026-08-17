@@ -1,12 +1,17 @@
 ---
-updated: 2026-08-17T20:00:00Z
+updated: 2026-08-17T23:00:00Z
 mode: single-file
 ---
 
 # Story Index
 
-Project-wide story tracking. **108 stories** across intents 001, 002 and 004 — **47 implemented**, 3
-partial, 3 blocked, 55 not built. Full breakdown under [Counts](#counts).
+Project-wide story tracking. **108 stories** across intents 001, 002 and 004 — **68 implemented**,
+1 partial, 1 blocked, 38 not built. Full breakdown under [Counts](#counts).
+
+**Intents 001 and 002 are done bar two stories.** Bolts 006–009 were built on 2026-08-17, which
+unblocked the four phase-2 stories that had been waiting on them, and story 018 (which had been
+waiting on nothing) was built at the same time. What remains of the first two intents is story 031
+(avatar upload) and story 010 (connector drift detection). Everything else outstanding is intent 004.
 
 **This file was wrong until 2026-08-17, and it is worth knowing how.** It recorded intent 001's 36
 stories as `planned` while four of its bolts had shipped, been tested and been verified against real
@@ -20,12 +25,18 @@ The lesson is already written down elsewhere in this repo, from bolt 013: *a tes
 checks nothing is worse than no test.* This is the second tool it has been true of.
 
 Intent 002 was elaborated on 2026-08-15, when ADR-004 (scrape rather than licence) and the
-second-backend decision took it into construction, and **built the same day** — 27 of its 34 stories
-are implemented, 3 partial and 4 blocked on phase-1 work that has not shipped
-(`collection_snapshots`, `/collection`, the outbox).
+second-backend decision took it into construction, and **built the same day** — leaving four stories
+`blocked` on phase-1 work that did not exist: `collection_snapshots`, `/collection`'s filters, and
+the notification outbox.
 
-Intent 001's phase-1 work is what those four wait on: bolts 001–005 are built (001, 002, 003 and 005
-`partial`, 004 `complete`), and bolts 006–009 have not been started.
+**All three shipped on 2026-08-17**, and the four unblocked stories needed no compromise to build.
+That is worth recording, because the alternative was tempting: bolt 017's notes had floated shipping
+alerts with direct delivery and swapping in the outbox later, which would have meant an alert lost to
+an outage — the exact failure its acceptance criterion forbids — plus a second delivery path to
+remove. Waiting cost a fortnight and produced a feature with no temporary code in it.
+
+Intent 001 is now bolts 001–009, all built. Four are `complete`; five are `partial`, each on one
+nameable thing — listed below.
 
 Intent 003 remains decomposed to unit level only; its stories are enumerated in its `units.md`.
 
@@ -73,28 +84,29 @@ the human-readable view and distinguishes states the script has no word for.
 | **016-fast-add-flow** | 004-collection-experience | 005 | must | implemented |
 | 017-set-grid-entry | 004-collection-experience | 005 | must | implemented |
 | 018-undo-recent-adds | 004-collection-experience | 005 | should | implemented |
-| **019-collection-table** | 004-collection-experience | 006 | must | planned |
-| 020-collection-filters | 004-collection-experience | 006 | must | planned |
-| 021-saved-views | 004-collection-experience | 006 | should | planned |
-| 022-bulk-actions | 004-collection-experience | 006 | must | planned |
+| **019-collection-table** | 004-collection-experience | 006 | must | implemented |
+| 020-collection-filters | 004-collection-experience | 006 | must | implemented |
+| 021-saved-views | 004-collection-experience | 006 | should | implemented |
+| 022-bulk-actions | 004-collection-experience | 006 | must | implemented |
 | 023-set-completion | 003-inventory-core | 004 | must | implemented |
-| 024-missing-cards-view | 004-collection-experience | 006 | must | planned |
-| 025-sealed-inventory | 005-sealed-and-wishlist | 007 | must | planned |
-| 026-wishlist | 005-sealed-and-wishlist | 007 | should | planned |
-| 027-csv-export | 006-import-export | 008 | must | planned |
-| **028-csv-import-mapping** | 006-import-export | 008 | must | planned |
-| 029-csv-import-commit | 006-import-export | 008 | must | planned |
-| 030-profile-settings | 007-profile-and-sharing | 009 | should | planned |
-| 031-avatar-upload | 007-profile-and-sharing | 009 | should | planned |
-| 032-notification-preferences | 007-profile-and-sharing | 009 | should | planned |
-| 033-public-collection | 007-profile-and-sharing | 009 | could | planned |
+| 024-missing-cards-view | 004-collection-experience | 006 | must | implemented |
+| 025-sealed-inventory | 005-sealed-and-wishlist | 007 | must | implemented |
+| 026-wishlist | 005-sealed-and-wishlist | 007 | should | implemented |
+| 027-csv-export | 006-import-export | 008 | must | implemented |
+| **028-csv-import-mapping** | 006-import-export | 008 | must | implemented |
+| 029-csv-import-commit | 006-import-export | 008 | must | implemented |
+| 030-profile-settings | 007-profile-and-sharing | 009 | should | implemented |
+| 031-avatar-upload | 007-profile-and-sharing | 009 | should | not built |
+| 032-notification-preferences | 007-profile-and-sharing | 009 | should | implemented |
+| 033-public-collection | 007-profile-and-sharing | 009 | could | implemented |
 | 034-admin-catalog-console | 002-card-catalog | 003 | should | implemented |
-| 035-account-data-deletion | 007-profile-and-sharing | 009 | should | planned |
-| 036-dashboard | 004-collection-experience | 006 | must | planned |
+| 035-account-data-deletion | 007-profile-and-sharing | 009 | should | implemented |
+| 036-dashboard | 004-collection-experience | 006 | must | implemented |
 
-**20 implemented, 16 not started.** The 16 are bolts 006–009 in full: browse, sealed and wishlist,
-import/export, profile and sharing. That is the critical path — bolt 006 is what four of intent 002's
-open stories wait on.
+**35 implemented, 1 not built.** Bolts 006–009 shipped on 2026-08-17: browse, sealed and wishlist,
+import/export, profile and sharing. The one outstanding story is **031 avatar upload**, which needs
+storage-api reachable with the user's own token — the same platform gate that keeps enrichment,
+project logging and usage metering switched off.
 
 ### What "implemented" leaves open at bolt level
 
@@ -102,11 +114,15 @@ Three of the five built bolts are `partial`, and each on one nameable thing:
 
 | Bolt | Open |
 |---|---|
-| 001 platform foundation | Nine criteria needing a running platform: JWT `sub` stability across an email change, all seven M2M scopes actually granted, the branding round-trip, console visibility, the logs-api-down path, and the two p95 budgets |
+| 001 platform foundation | Nine criteria needing a running platform: JWT `sub` stability across an email change, all seven M2M scopes actually granted, the branding round-trip, console visibility, the logs-api-down path, and the two p95 budgets. **This one blocks the most** — story 031 and three feature flags wait on the same scopes |
 | 002 card catalog | **`FE01.csv` ships with a header and no rows.** ADR-001 rules out scraping the one complete source and fabricating 126 cards would poison a catalog whose job is being correct. Needs hand-compiled data, not code — and until it lands, the catalog is a tested importer over an empty set |
 | 003 catalog surface | A full WCAG 2.2 AA pass — contrast, focus visibility, axe — and the three public pages rendered in a browser rather than type-checked |
 | 004 inventory core | Nothing. `complete` as of the 2026-08-11 verification run |
 | 005 collection entry | The timed session with a real person: median add < 5s, 100 cards < 10min |
+| 006 collection browse | Two unmeasured budgets — 10,000 rows at 60fps and a 400ms list p95 — plus the same screen-reader pass bolt 003 is waiting on. **That audit is now deferred on three bolts and should stop being deferred** |
+| 007 sealed and wishlist | Nothing. `complete` |
+| 008 import / export | The 30-second dry run and 100MB export budgets are unmeasured (the shapes are right; neither is on a clock), and story 029's usage metering waits on bolt 001's scopes |
+| 009 profile and sharing | Story 031, above. The outbox also has no real sender wired — it accumulates rather than delivers, and the default sender *raises* rather than quietly marking things sent |
 
 Every story has its own file at `units/{unit}/stories/{SSS}-{title-slug}.md`, as
 `.specsmd/aidlc/scripts/artifact-validator.cjs` requires — each bolt's `stories:` array is a
@@ -144,39 +160,44 @@ Elaborated 2026-08-15. Bolt numbering continues the global sequence from intent 
 | 027-trigger-and-watch-a-scan | 005-admin-console | 013 | must | implemented |
 | 016-daily-rollup-job | 004-rollups-and-valuation | 014 | must | implemented |
 | 017-outlier-exclusion | 004-rollups-and-valuation | 014 | must | implemented |
-| 018-fx-normalisation | 004-rollups-and-valuation | 014 | must | not built |
+| 018-fx-normalisation | 004-rollups-and-valuation | 014 | must | implemented |
 | **019-price-daily-publication** | 004-rollups-and-valuation | 014 | must | implemented |
 | 020-collection-valuation | 004-rollups-and-valuation | 014 | must | implemented |
-| 021-portfolio-history-and-pl | 004-rollups-and-valuation | 014 | must | partial |
-| 022-nightly-snapshot-valuation | 004-rollups-and-valuation | 014 | must | blocked |
+| 021-portfolio-history-and-pl | 004-rollups-and-valuation | 014 | must | implemented |
+| 022-nightly-snapshot-valuation | 004-rollups-and-valuation | 014 | must | implemented |
 | 028-coverage-and-match-quality | 005-admin-console | 015 | must | implemented |
 | 029-price-distribution-and-source-agreement | 005-admin-console | 015 | must | implemented |
 | 030-card-price-tab | 006-price-surfaces | 016 | must | implemented |
 | 031-market-overview | 006-price-surfaces | 016 | should | implemented |
-| 032-portfolio-page | 006-price-surfaces | 016 | must | partial |
-| 033-slice-valuation | 006-price-surfaces | 016 | must | blocked |
-| 034-price-alerts | 007-alerts | 017 | should | blocked |
+| 032-portfolio-page | 006-price-surfaces | 016 | must | implemented |
+| 033-slice-valuation | 006-price-surfaces | 016 | must | implemented |
+| 034-price-alerts | 007-alerts | 017 | should | implemented |
 
-### What each unfinished one is waiting for
+### What every one of them was waiting for — and what happened to it
 
-**018-fx-normalisation is the only one waiting for nobody.** It was recorded as `blocked` and is
-not: `fx_rates` and its model exist, and the daily rate fetch and the conversion path were simply
-never written. Everything currently rolls up in its observed currency. It can be picked up today,
-which is what distinguishes it from the four below.
+All five blocked stories, plus the one that was blocked by nothing, were built on 2026-08-17. The
+table is kept because the dependency chain is the interesting part, not the outcome.
 
-| Story | Waiting for | Which is |
+| Story | Was waiting for | Resolution |
 |---|---|---|
-| 021-portfolio-history-and-pl | `collection_snapshots` | phase-1 work planned as insurance for exactly this, and never built |
-| 022-nightly-snapshot-valuation | `collection_snapshots` | as above |
-| 032-portfolio-page | `collection_snapshots` | as above — current value, coverage and confidence are built; only the series is missing |
-| 033-slice-valuation | `/collection`'s filters | intent 001 bolt 006. The story specifies reusing them, and writing a second filter implementation is exactly what it says not to do |
-| 034-price-alerts | the notification outbox | intent 001 bolt 009. "An outage delays rather than loses" is an acceptance criterion, not a preference |
-| 010-connector-fixtures-and-drift-detection | nothing external | fixtures exist; the drift check over them does not |
+| 021-portfolio-history-and-pl | `collection_snapshots` | table built with bolt 006. History reads off it |
+| 022-nightly-snapshot-valuation | `collection_snapshots` | as above. `--value-snapshots` writes a value onto each day using **that day's** rollups |
+| 032-portfolio-page | `collection_snapshots` | as above. The chart **breaks** where the data breaks, rather than drawing zero |
+| 033-slice-valuation | `/collection`'s filters | bolt 006 shipped `FilterSet`, and the slice reuses it — a full slice equals `/portfolio` by construction |
+| 034-price-alerts | the notification outbox | bolt 009 shipped it. The alert is an ordinary `enqueue` on the same queue everything else uses |
+| 018-fx-normalisation | **nothing** | it had never been blocked; the fetch job and conversion path had simply not been written. Built alongside the rest |
+| 010-connector-fixtures-and-drift-detection | nothing external | **still open.** Fixtures exist; the check that compares a live parse against them does not |
 
-So **`collection_snapshots` is the single highest-leverage missing thing in the project**: one table,
-written by phase 1, unblocks three phase-2 stories. It was designed a year early precisely so
-portfolio history would not start empty on the day phase 2 shipped, and then not built — which is the
-one outcome that plan existed to avoid.
+**`collection_snapshots` was the single highest-leverage missing thing in the project** — one table
+unblocking three stories — and it is worth remembering why it was missing. It was designed a year
+early precisely so portfolio history would not start empty on the day phase 2 shipped, then not
+built, which is the one outcome that plan existed to avoid. Planning ahead only helps if the plan is
+executed at the time it was made for.
+
+**And what waiting bought.** Bolt 017's notes had floated shipping alerts with direct delivery and
+swapping the outbox in later. That would have meant an alert lost to an outage — precisely the
+failure story 034's own criterion forbids — plus a second delivery path to remove. The fortnight of
+`blocked` produced a feature with no temporary code in it.
 
 **Bold** marks the nine carrying the most risk in intent 002 — the two boundaries that must hold
 (grants, `price_daily` publication), the gate that records accepted risk, the discovery scan, the
@@ -262,20 +283,29 @@ By priority:
 | Intent 004 | 34 | 4 | 0 | **38** |
 | **Total** | **92** | **15** | **1** | **108** |
 
-By state, as of 2026-08-17:
+By state, end of 2026-08-17:
 
 | | Implemented | Partial | Blocked | Not built | Total |
 |---|---|---|---|---|---|
-| Intent 001 | 20 | 0 | 0 | 16 | **36** |
-| Intent 002 | 27 | 3 | 3 | 1 | **34** |
+| Intent 001 | 35 | 0 | 0 | 1 | **36** |
+| Intent 002 | 33 | 1 | 0 | 0 | **34** |
 | Intent 004 | 0 | 0 | 1 | 37 | **38** |
-| **Total** | **47** | **3** | **4** | **54** | **108** |
+| **Total** | **68** | **1** | **1** | **38** | **108** |
 
-**44% implemented**, down from 67% — because intent 004 added 38 unbuilt stories in a single day, not
-because anything regressed. The built total is unchanged at 47.
+**63% implemented**, and the shape of what is left changed completely in one day: intents 001 and 002
+went from 47 built of 70 to **68 of 70**, and every remaining `blocked` story is in intent 004.
 
-The remaining work is now two clusters rather than one: intent 001's bolts 006–009 with the phase-2
-stories waiting on them, and the whole of intent 004.
+Two stories outstanding in the first two intents, and both are genuinely blocked on something
+external rather than on effort:
+
+* **031 avatar upload** needs storage-api reachable and a browser-to-storage upload with the *user's
+  own* token. Same gate as `ENABLE_ENRICHMENT`, `ENABLE_PROJECT_LOGGING` and
+  `ENABLE_USAGE_METERING` — all still off because the M2M service account does not hold the seven
+  scopes. That is bolt 001's open item and it blocks more than one thing.
+* **010 connector drift detection** — the fixtures exist; the check that compares a live parse
+  against them does not.
+
+The rest of the work is intent 004 in its entirety.
 
 ## Intents not yet decomposed to stories
 
