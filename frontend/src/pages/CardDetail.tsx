@@ -1,14 +1,75 @@
 // /cards/:cardId — one card with every printing. Public: works signed out.
+import { useAuth } from "@lars-kluijtmans/react-auth";
 import {
-  Alert, Box, Divider, MenuItem, Select, Skeleton, Stack, Typography,
+  Alert, Box, Button, Divider, MenuItem, Select, Skeleton, Stack, Tooltip, Typography,
 } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
-import { fetchCard } from "../api/backend";
+import { ApiError, addWish, fetchCard, type PrintingView } from "../api/backend";
 import { ElementChip } from "../components/ElementChip";
 import { PriceHistoryPanel } from "../components/PriceHistory";
 import { PrintingTable } from "../components/PrintingTable";
+
+/**
+ * Add a printing to the wishlist — story 026.
+ *
+ * Signed-out visitors do not see it: this page is public and a wish is per-user, so offering the
+ * button and then bouncing them to a login portal would be a worse first impression than not
+ * offering it.
+ *
+ * A duplicate is a `409`, and it is reported as "already on your list" rather than as an error.
+ * From the collector's point of view nothing went wrong — the card is on the list, which is what
+ * they wanted.
+ */
+function WishButton({ printings }: { printings: PrintingView[] }) {
+  const { isAuthenticated, getAccessToken } = useAuth();
+  const client = useQueryClient();
+  const [choice, setChoice] = useState<string>(printings[0]?.printing_id ?? "");
+
+  const wish = useMutation({
+    mutationFn: () => addWish({ printing_id: choice }, getAccessToken),
+    onSettled: () => client.invalidateQueries({ queryKey: ["wishlist"] }),
+  });
+
+  if (!isAuthenticated || !printings.length) return null;
+
+  const already =
+    wish.isError && (wish.error as ApiError)?.code === "already_wished";
+
+  return (
+    <Stack direction="row" sx={{ gap: 1, ml: "auto", alignItems: "center" }}>
+      {printings.length > 1 ? (
+        <Select
+          size="small"
+          value={choice}
+          onChange={(event) => setChoice(event.target.value)}
+          sx={{ fontSize: 12 }}
+          inputProps={{ "aria-label": "Which printing to wish for" }}
+        >
+          {printings.map((printing) => (
+            <MenuItem key={printing.printing_id} value={printing.printing_id}>
+              {printing.rarity} · {printing.finish}
+            </MenuItem>
+          ))}
+        </Select>
+      ) : null}
+
+      <Tooltip title={already ? "Already on your wishlist" : "Add to wishlist"}>
+        <span>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={wish.isPending || wish.isSuccess || already}
+            onClick={() => wish.mutate()}
+          >
+            {wish.isSuccess ? "On your wishlist" : already ? "Already wished" : "Wishlist"}
+          </Button>
+        </span>
+      </Tooltip>
+    </Stack>
+  );
+}
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
@@ -58,6 +119,9 @@ export function CardDetailPage() {
             {data.rune_type ? ` · ${data.rune_type}` : ""}
             {data.subtype ? ` · ${data.subtype}` : ""}
           </Typography>
+          {/* Wishing is per *printing*, not per card — a foil first edition and a plain unlimited
+              are different things to want, and different things to price-alert on later. */}
+          <WishButton printings={data.printings} />
         </Stack>
       </Box>
 

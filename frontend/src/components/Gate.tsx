@@ -8,10 +8,9 @@ import { authConfig } from "../authConfig";
 import { AdminCatalogPage } from "../pages/AdminCatalog";
 import { CardDetailPage } from "../pages/CardDetail";
 import { DashboardPage } from "../pages/Dashboard";
-import {
-  ImportExportPage, NotFoundPage,
-  Placeholder, SealedPage, WishlistPage,
-} from "../pages/Placeholder";
+import { ImportExportPage, NotFoundPage, Placeholder } from "../pages/Placeholder";
+import { SealedPage } from "../pages/Sealed";
+import { WishlistPage } from "../pages/Wishlist";
 import { CollectionPage } from "../pages/collection/Collection";
 import { AddCardsPage } from "../pages/collection/AddCards";
 import { AddFromSetPage } from "../pages/collection/AddFromSet";

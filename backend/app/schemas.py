@@ -497,6 +497,98 @@ class SnapshotHistoryResponse(BaseModel):
     items: list[SnapshotModel]
 
 
+# --- sealed and wishlist (bolt 007) ---------------------------------------------------
+
+
+class SealedItemResponse(BaseModel):
+    id: str
+    sealed_product_id: str
+    name: str
+    kind: str
+    image_url: str | None
+    quantity: int
+    #: One-way. An opened box is not re-sealable, and the model does not offer the transition.
+    is_sealed: bool
+    acquired_on: date | None
+    acquired_unit_price_cents: int | None
+    acquired_currency: str | None
+    storage_location: str | None
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SealedListResponse(BaseModel):
+    items: list[SealedItemResponse]
+    total: int
+    sealed_count: int
+    opened_count: int
+
+
+class AddSealedRequest(BaseModel):
+    sealed_product_id: str
+    quantity: int = Field(default=1, ge=1, le=10_000)
+    is_sealed: bool = True
+    acquired_on: date | None = None
+    acquired_unit_price_cents: int | None = Field(default=None, ge=0)
+    acquired_currency: str | None = Field(default=None, min_length=3, max_length=3)
+    storage_location: str | None = Field(default=None, max_length=64)
+    notes: str | None = Field(default=None, max_length=512)
+
+
+class PatchSealedRequest(BaseModel):
+    quantity: int | None = Field(default=None, ge=1, le=10_000)
+    acquired_on: date | None = None
+    acquired_unit_price_cents: int | None = Field(default=None, ge=0)
+    acquired_currency: str | None = Field(default=None, min_length=3, max_length=3)
+    storage_location: str | None = Field(default=None, max_length=64)
+    notes: str | None = Field(default=None, max_length=512)
+
+
+class WishlistItemResponse(BaseModel):
+    id: str
+    printing_id: str
+    card_id: str
+    name: str
+    set_code: str
+    collector_number: str
+    element: str | None
+    rarity: str
+    finish: str
+    desired_quantity: int
+    priority: str
+    max_price_cents: int | None
+    max_price_currency: str | None
+    notes: str | None
+    #: True when this printing is now owned. Drives a prompt, never a deletion.
+    owned: bool
+    created_at: datetime
+
+
+class WishlistResponse(BaseModel):
+    items: list[WishlistItemResponse]
+    total: int
+    acquired_count: int
+
+
+class AddWishRequest(BaseModel):
+    printing_id: str
+    desired_quantity: int = Field(default=1, ge=1, le=1_000)
+    priority: Literal["low", "normal", "high"] = "normal"
+    #: Both or neither — a bare number is not money, and the service refuses half a price.
+    max_price_cents: int | None = Field(default=None, ge=0)
+    max_price_currency: str | None = Field(default=None, min_length=3, max_length=3)
+    notes: str | None = Field(default=None, max_length=512)
+
+
+class PatchWishRequest(BaseModel):
+    desired_quantity: int | None = Field(default=None, ge=1, le=1_000)
+    priority: Literal["low", "normal", "high"] | None = None
+    max_price_cents: int | None = Field(default=None, ge=0)
+    max_price_currency: str | None = Field(default=None, min_length=3, max_length=3)
+    notes: str | None = Field(default=None, max_length=512)
+
+
 class CatalogHealth(BaseModel):
     sources: list[SourceHealth]
     #: Sets whose imported count is short of the declared printed size.

@@ -32,8 +32,10 @@ from ..services.inventory_service import InventoryService
 from ..services.import_runner import ImportRunner
 from ..services.profile_service import ProfileService
 from ..services.saved_view_service import SavedViewService
+from ..services.sealed_service import SealedService
 from ..services.snapshot_service import SnapshotService
 from ..services.valuation_service import ValuationService
+from ..services.wishlist_service import WishlistService
 from .db import get_db
 
 
@@ -230,3 +232,13 @@ def make_snapshot_service(db: Session) -> SnapshotService:
 
 def snapshot_service(db: Session = Depends(get_db)) -> SnapshotService:
     return make_snapshot_service(db)
+
+
+# --- Sealed and wishlist (bolt 007) ---------------------------------------------------
+
+def sealed_service(db: Session = Depends(get_db)) -> SealedService:
+    return SealedService(db)
+
+
+def wishlist_service(db: Session = Depends(get_db)) -> WishlistService:
+    return WishlistService(db)

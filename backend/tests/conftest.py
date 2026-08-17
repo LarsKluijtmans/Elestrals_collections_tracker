@@ -34,8 +34,10 @@ from app.models import (  # noqa: F401
     price_daily,
     printing,
     saved_view,
+    sealed_inventory_item,
     sealed_product,
     user_profile,
+    wishlist_item,
 )
 from app.models import (  # noqa: F401
     set as set_model,

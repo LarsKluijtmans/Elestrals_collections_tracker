@@ -505,6 +505,93 @@ export async function fetchHistory(
   return ((await res.json()) as { items: SnapshotPoint[] }).items;
 }
 
+// --- Sealed and wishlist (bolt 007) ---------------------------------------------------
+
+export type SealedItem = {
+  id: string;
+  sealed_product_id: string;
+  name: string;
+  kind: string;
+  image_url: string | null;
+  quantity: number;
+  is_sealed: boolean;
+  acquired_on: string | null;
+  acquired_unit_price_cents: number | null;
+  acquired_currency: string | null;
+  storage_location: string | null;
+  notes: string | null;
+};
+
+export type SealedList = {
+  items: SealedItem[];
+  total: number;
+  sealed_count: number;
+  opened_count: number;
+};
+
+export type WishlistEntry = {
+  id: string;
+  printing_id: string;
+  card_id: string;
+  name: string;
+  set_code: string;
+  collector_number: string;
+  element: string | null;
+  rarity: string;
+  finish: string;
+  desired_quantity: number;
+  priority: string;
+  max_price_cents: number | null;
+  max_price_currency: string | null;
+  notes: string | null;
+  /** Now in the collection. Drives a prompt — never an automatic removal. */
+  owned: boolean;
+};
+
+export type Wishlist = { items: WishlistEntry[]; total: number; acquired_count: number };
+
+export async function fetchSealed(getToken?: TokenGetter): Promise<SealedList> {
+  const res = await request("/api/v1/sealed", undefined, getToken);
+  return (await res.json()) as SealedList;
+}
+
+export async function openSealed(
+  itemId: string, quantity: number, getToken?: TokenGetter,
+): Promise<SealedItem> {
+  const res = await request(
+    `/api/v1/sealed/${encodeURIComponent(itemId)}/open${qs({ quantity })}`,
+    { method: "POST" },
+    getToken,
+  );
+  return (await res.json()) as SealedItem;
+}
+
+export async function deleteSealed(itemId: string, getToken?: TokenGetter): Promise<void> {
+  await request(`/api/v1/sealed/${encodeURIComponent(itemId)}`, { method: "DELETE" }, getToken);
+}
+
+export async function fetchWishlist(getToken?: TokenGetter): Promise<Wishlist> {
+  const res = await request("/api/v1/wishlist", undefined, getToken);
+  return (await res.json()) as Wishlist;
+}
+
+export async function addWish(
+  body: {
+    printing_id: string; desired_quantity?: number; priority?: string;
+    max_price_cents?: number | null; max_price_currency?: string | null;
+  },
+  getToken?: TokenGetter,
+): Promise<WishlistEntry> {
+  const res = await request(
+    "/api/v1/wishlist", { method: "POST", body: JSON.stringify(body) }, getToken,
+  );
+  return (await res.json()) as WishlistEntry;
+}
+
+export async function deleteWish(itemId: string, getToken?: TokenGetter): Promise<void> {
+  await request(`/api/v1/wishlist/${encodeURIComponent(itemId)}`, { method: "DELETE" }, getToken);
+}
+
 /** Operator-only, so this one *does* carry the token. */
 export async function fetchCatalogHealth(getToken?: TokenGetter): Promise<CatalogHealth> {
   const res = await request("/api/v1/admin/catalog/health", undefined, getToken);
