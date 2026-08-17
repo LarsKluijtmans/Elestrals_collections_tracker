@@ -1,13 +1,30 @@
 # Deploying Elestral Vault
 
-Two containers — `elestrals-api` (FastAPI) and `elestrals-web` (nginx + the built SPA) — running
-on the platform's Docker network and published through a Cloudflare tunnel.
+**Six containers**, running on the platform's Docker network and published through a Cloudflare
+tunnel:
+
+| Container | Is |
+|---|---|
+| `elestrals-web` | nginx + the built SPA. Also the only thing published — it proxies to both backends |
+| `elestrals-api` | the collection backend. Owns `elestrals` |
+| `harvest-api` | the scraper backend. Owns `elestrals_harvest`, connects as its **own** MySQL user |
+| `harvest-worker` | Celery. Runs the scans, which are hours long and do not belong in a request |
+| `harvest-beat` | the schedule: light scans, deep scans, rollup, sweeper, quarantine probe, FX |
+| `harvest-redis` | broker and result backend only. Nothing here is a source of truth |
 
 ## Topology: one public hostname
 
 The SPA is served at `elestrals.larskluijtmans.com` and calls its API at `/api/*` on **that same
 origin**; nginx proxies those to `elestrals-api:9000`. The browser therefore makes no
 cross-origin request to our backend and needs no CORS.
+
+**The admin console reaches the second backend at `/harvest/*` on the same origin**, which nginx
+proxies to `harvest-api:9100` with the prefix stripped. Same hostname, different path — and
+deliberately *not* routed through `elestrals-api`, because proxying one backend through the other
+would make the collection backend a dependency of the admin console and undo half of FR-13.
+
+The trailing slash on that `proxy_pass` is load-bearing: without it nginx forwards `/harvest/`
+too and every harvest route 404s.
 
 The sibling Ligretto deployment started split-origin, with a separate `ligrettoapi.` hostname,
 and moved off it because that hostname's DNS proved unreliable. This is set up the way that one
@@ -60,12 +77,21 @@ GRANT SELECT ON elestrals.cards           TO 'elestrals_harvest'@'%';
 GRANT SELECT ON elestrals.printings       TO 'elestrals_harvest'@'%';
 GRANT SELECT ON elestrals.sealed_products TO 'elestrals_harvest'@'%';
 
--- The other direction is ONE table. `price_daily` is the entire contract between the services;
--- listings, runs, match notes and rejected rows stay admin-only on the harvester's side.
-GRANT SELECT ON elestrals_harvest.price_daily TO 'elestrals_app'@'%';
-
 FLUSH PRIVILEGES;
 ```
+
+**The other direction is ONE table, and it has to wait.** `price_daily` is the entire contract
+between the services — listings, runs, match notes and rejected rows stay admin-only on the
+harvester's side. But the table does not exist until the harvest migration creates it, so this grant
+runs **after** `alembic upgrade head` on `harvest-api`, not with the block above:
+
+```sql
+GRANT SELECT ON elestrals_harvest.price_daily TO 'elestrals_app'@'%';
+FLUSH PRIVILEGES;
+```
+
+Running it early fails with `ERROR 1146: Table 'elestrals_harvest.price_daily' doesn't exist`. Found
+the hard way on the first real deploy, 2026-08-17.
 
 Deliberately **not** granted, and worth stating so nobody adds them for convenience:
 `elestrals_harvest` gets no write on anything in `elestrals`, and no read at all on
@@ -107,22 +133,56 @@ The frontend bundle is built **on the host**, because `@lars-kluijtmans/react-au
 powershell -ExecutionPolicy Bypass -File scripts\use-local-sdks.ps1
 cd frontend && npm run build && cd ..
 
-cp .env.example .env          # fill in DATABASE_URL + M2M credentials
+cp .env.example .env          # DATABASE_URL, HARVEST_DATABASE_URL + M2M credentials
 docker compose up -d --build
 ```
 
-Schema, first time or after a migration:
+Schema — **two trees, and the order matters** because of the `price_daily` grant above:
 
 ```bash
 docker compose exec elestrals-api alembic upgrade head
+docker compose exec harvest-api   alembic upgrade head
+# ...then the deferred GRANT, now that elestrals_harvest.price_daily exists.
+```
+
+Register the scrapers. They arrive **disabled with no terms-review note**, which is ADR-004
+working rather than something to fix:
+
+```bash
+docker compose exec harvest-api python -m app.harvest --sync-sources
+docker compose exec harvest-api python -m app.harvest --list
 ```
 
 Verify:
 
 ```bash
-curl http://127.0.0.1:9530/api/v1/health     # through the nginx proxy
-docker compose ps                            # both should read (healthy)
+curl http://127.0.0.1:9530/api/v1/health          # elestrals-api, through nginx
+curl http://127.0.0.1:9530/harvest/api/v1/health  # harvest-api, through nginx
+docker compose ps                                 # all six
 ```
+
+`harvest-beat` reports **no health status at all**, and that is deliberate. The image's
+`HEALTHCHECK` curls `:9100`, which only `harvest-api` serves — three roles share one image on
+purpose (one build, one tag, one thing to be sure of), but that means two of them inherit a probe
+they can never pass. `harvest-worker` overrides it with `celery inspect ping`, which asks a worker
+the right question; beat has neither a port nor a broker connection to interrogate, so its check is
+disabled and `restart: unless-stopped` covers the only failure mode it has.
+
+A permanently red light is worse than no light — it is the one that gets ignored on the day it
+means something.
+
+The harvest health check reports `database`, `redis` **and** `conduct` — whether it obeys
+`robots.txt` and whether it identifies itself. That last one is ADR-004's posture surfaced as an
+operational fact rather than left in a document.
+
+Then prove the boundary, which is the one thing SQLite cannot test:
+
+```bash
+HARVEST_TEST_MYSQL_URL=mysql+pymysql://elestrals_harvest:...@127.0.0.1:9306/elestrals_harvest \nELESTRALS_TEST_MYSQL_URL=mysql+pymysql://elestrals_app:...@127.0.0.1:9306/elestrals \n  pytest harvest/tests/test_grants_mysql.py -m mysql
+```
+
+16 tests, each attempting a read or write that must be refused. **Point them at the two narrowly
+granted users, never at root** — root passes every one of them while proving nothing.
 
 ## The nightly snapshot — set this up on day one
 

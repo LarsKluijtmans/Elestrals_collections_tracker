@@ -94,9 +94,11 @@ Every other assertion in that file also passes against a read-compare-write impl
 the whole point: ADR-005 rejected read-then-write because it reintroduces one layer up the exact
 race bolt 004's atomic upsert eliminated, and only a real race distinguishes the two.
 
-MySQL's own row locking under that race is now covered by `scripts/verify_mysql.py` steps **[8]** and
-**[9]**, added in this stage — but that script needs the platform stack, so those two steps are
-**written and unrun** here, exactly as the grant tests in `harvest/` are.
+MySQL's own row locking under that race is covered by `scripts/verify_mysql.py` steps **[8]** and
+**[9]**, added in this stage. They were written-and-unrun when this report was first filed; **both
+ran and passed on 2026-08-17**, against MySQL 8.4 on the platform stack — 29/29 checks. Two threads,
+two connections, one row: exactly one undo applied, the loser was *refused* rather than erroring, and
+the quantity dropped by exactly one. Adjust-to-zero deleted the row rather than storing a zero.
 
 ## Success criteria
 
@@ -125,12 +127,12 @@ median is missed, fix the interaction — fewer required fields, better defaults
 carry-forward — and do **not** optimise an API already answering in 200ms. The bottleneck will be
 decisions the user has to make.
 
-**Also unrun, both needing the platform stack:**
+**Closed since this report was filed:** `scripts/verify_mysql.py` steps [8] and [9] ran on
+2026-08-17 against MySQL 8.4 — 29/29. The compare-and-swap holds under MySQL's own row locking:
+exactly one of two racing undos applied, and the loser was refused rather than erroring.
 
-- `scripts/verify_mysql.py` steps [8] and [9] — the compare-and-swap under MySQL's row locking, and
-  adjust-to-zero deleting rather than storing a zero.
-- The p95 write budget from bolt 004 (< 200ms including recompute) against `/adjust` specifically.
-  `scripts/bench.py` measures the add path, not this one.
+**Still unrun:** the p95 write budget from bolt 004 (< 200ms including recompute) against `/adjust`
+specifically. `scripts/bench.py` measures the add path, not this one.
 
 ## Notes
 

@@ -138,3 +138,32 @@ designed and unproven.
 with pre-written review notes. That is gone. Under ADR-004 a review note records an *accepted risk
 with a named person*, and a migration cannot accept a risk on somebody's behalf - so enabling is a
 CLI command that requires both `--note` and `--accepted-by`.
+
+
+## Deployed and proved - 2026-08-17
+
+**The grant tests ran for the first time, and all 16 passed.**
+
+They had been skipped since the bolt was written — `test_grants_mysql.py` needs *both* narrowly
+granted MySQL users, and until today neither the `elestrals_harvest` database nor its user existed.
+The suite reported "155 tests, 16 skipped" on every run, which is exactly the shape of a boundary
+asserted in a document and nowhere else.
+
+Story 002's whole claim is that FR-13's isolation is enforced **by privilege rather than by
+convention**. That claim was untested for two days. It is now tested against MySQL 8.4:
+
+| Direction | Result |
+|---|---|
+| `elestrals_harvest` writing anything in `elestrals` | refused |
+| `elestrals_harvest` reading `inventory_items` or `user_profiles` | refused |
+| `elestrals_harvest` reading the four catalog tables it needs | allowed |
+| `elestrals_app` reading `elestrals_harvest.price_daily` | allowed |
+| `elestrals_app` reading `market_listings`, `price_observations`, `harvest_runs`, `price_sources` | refused, all four |
+
+That last row was also checked from *inside the running `elestrals-api` container* rather than only
+from a test harness — same result, four `OperationalError`s.
+
+**The deploy found one documentation error.** `GRANT SELECT ON elestrals_harvest.price_daily TO
+'elestrals_app'` was listed alongside the other grants, but the table does not exist until the
+harvest migration creates it, so running the block as written fails with `ERROR 1146`. `DEPLOY.md`
+now splits it out and says why.
