@@ -53,6 +53,23 @@ class QuantityOutOfRange(InventoryError):
     status = 400
 
 
+class ItemChanged(InventoryError):
+    """The holding moved since the caller last knew about it — ADR-005.
+
+    A `409`, not a `404` and not a silent overwrite. Story 018 requires that undo refuses with an
+    explanation rather than guessing, and this carries both numbers so the explanation can say
+    what it expected and what it found.
+    """
+
+    code = "inventory_item_changed"
+    status = 409
+
+    def __init__(self, *, expected: int, actual: int) -> None:
+        super().__init__("That holding changed since you added it")
+        self.expected = expected
+        self.actual = actual
+
+
 class InvalidCondition(InventoryError):
     code = "bad_request"
     status = 400
@@ -65,6 +82,16 @@ MAX_QUANTITY = 10_000
 class AddResult:
     item: InventoryItem
     merged: bool
+
+
+@dataclass(frozen=True, slots=True)
+class AdjustResult:
+    item_id: str
+    quantity: int
+    #: True when the adjustment took the quantity to zero and the row went with it. Bolt 004:
+    #: a zero-quantity row is a deletion that did not happen, so undoing the add that created a
+    #: holding removes it rather than leaving a zero for the client to render.
+    deleted: bool
 
 
 @dataclass
@@ -197,6 +224,63 @@ class InventoryService:
         self._items.flush()
         self._recompute(user_sub, [item.printing_id])
         return item
+
+    # --- adjust (ADR-005) --------------------------------------------------------------
+
+    def adjust(
+        self, user_sub: str, item_id: str, *, delta: int, expected_quantity: int
+    ) -> AdjustResult:
+        """Change a quantity by `delta`, but only if it is still `expected_quantity`.
+
+        The undo primitive. Story 018 requires that undo reverses **a delta, not a row** — so
+        that undoing the second of three adds does not delete the holding — and that it
+        **refuses rather than guesses** when the holding changed outside the session.
+
+        `expected_quantity` is what makes both true at once, and it means *"what the caller
+        believes, from its own record of what it did"*, not *"what the caller just read"*. A
+        caller that fetches the row to fill this field has reinstated the read-then-write this
+        endpoint exists to avoid, with extra steps and a false sense of safety. See ADR-005.
+
+        The pre-read below is not a check-then-act: the atomic statement is still what decides,
+        and this only exists to know the `printing_id` for the completion recompute and to tell
+        a 404 from a 409 afterwards.
+        """
+        if delta == 0:
+            raise QuantityOutOfRange("delta must not be zero")
+        if abs(delta) > MAX_QUANTITY:
+            raise QuantityOutOfRange(f"delta must be within ±{MAX_QUANTITY}")
+
+        item = self._items.get(user_sub, item_id)
+        if item is None:
+            raise ItemNotFound(item_id)
+
+        printing_id = item.printing_id
+        target = expected_quantity + delta
+        if target < 0:
+            raise QuantityOutOfRange("that adjustment would take the quantity below zero")
+
+        matched = self._items.compare_and_adjust(
+            user_sub, item_id, delta=delta, expected=expected_quantity
+        )
+        if not matched:
+            # Owner-scoped read, so reporting the actual quantity tells the caller only about a
+            # row it already owns. A row that vanished between the two reads is a 404, which is
+            # the same answer somebody else's row gets.
+            current = self._items.get(user_sub, item_id)
+            if current is None:
+                raise ItemNotFound(item_id)
+            raise ItemChanged(expected=expected_quantity, actual=current.quantity)
+
+        self._recompute(user_sub, [printing_id])
+
+        if target == 0:
+            return AdjustResult(item_id=item_id, quantity=0, deleted=True)
+        remaining = self._items.get(user_sub, item_id)
+        return AdjustResult(
+            item_id=item_id,
+            quantity=remaining.quantity if remaining else target,
+            deleted=False,
+        )
 
     # --- remove ----------------------------------------------------------------------
 

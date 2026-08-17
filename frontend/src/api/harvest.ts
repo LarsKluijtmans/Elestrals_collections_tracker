@@ -96,6 +96,19 @@ export type ListingFilters = {
   offset?: number;
 };
 
+export type RollupRun = {
+  since: string;
+  since_days: number;
+  /** Days that actually carried observations — not the window's length. Asking for a week and
+   *  being told 2 is a true statement about coverage, and worth showing as one. */
+  days: number;
+  rows: number;
+  excluded: number;
+  max_since_days: number;
+};
+
+export type SweepResult = { swept: number; stale_after_minutes: number };
+
 export type CoverageReport = {
   tracked_printings: number;
   priced_printings: number;
@@ -283,6 +296,30 @@ export const harvestApi = {
       `/api/v1/admin/analysis/distribution${qs(params)}`,
       getToken,
     );
+    return res.json();
+  },
+
+  /**
+   * Recompute `price_daily` now, rather than at the next beat.
+   *
+   * Unlike a scan this is synchronous, because a rollup over recent days is seconds and an admin
+   * who pressed "recompute" wants the numbers rather than a task id. The window is capped
+   * server-side; a full-history rebuild is `python -m app.harvest --rollup`.
+   */
+  async recomputeRollup(getToken: TokenGetter, sinceDays = 7): Promise<RollupRun> {
+    const res = await harvestRequest(
+      `/api/v1/admin/maintenance/rollup${qs({ since_days: sinceDays })}`,
+      getToken,
+      { method: "POST" },
+    );
+    return res.json();
+  },
+
+  /** Fail runs orphaned by a deploy, so the duplicate-run check stops refusing a manual scan. */
+  async sweepStaleRuns(getToken: TokenGetter): Promise<SweepResult> {
+    const res = await harvestRequest("/api/v1/admin/maintenance/sweep", getToken, {
+      method: "POST",
+    });
     return res.json();
   },
 };

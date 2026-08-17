@@ -292,6 +292,22 @@ class AddInventoryResponse(BaseModel):
     merged: bool
 
 
+class AdjustInventoryRequest(BaseModel):
+    """ADR-005. `expected_quantity` means *what the caller believes, from its own record of what
+    it did* — not what it just read. A caller that fetches the row to fill this field has
+    reinstated the read-then-write this endpoint exists to avoid."""
+
+    delta: int = Field(ge=-10_000, le=10_000)
+    expected_quantity: int = Field(ge=0, le=10_000)
+
+
+class AdjustInventoryResponse(BaseModel):
+    item_id: str
+    quantity: int
+    #: True when the adjustment reached zero and the row was removed with it.
+    deleted: bool
+
+
 class PatchInventoryRequest(BaseModel):
     condition: CONDITION | None = None
     quantity: int | None = Field(default=None, ge=1, le=10_000)

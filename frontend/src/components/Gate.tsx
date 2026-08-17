@@ -9,9 +9,12 @@ import { AdminCatalogPage } from "../pages/AdminCatalog";
 import { CardDetailPage } from "../pages/CardDetail";
 import { DashboardPage } from "../pages/Dashboard";
 import {
-  AddCardsPage, CollectionPage, ImportExportPage, NotFoundPage,
+  CollectionPage, ImportExportPage, NotFoundPage,
   Placeholder, SealedPage, WishlistPage,
 } from "../pages/Placeholder";
+import { AddCardsPage } from "../pages/collection/AddCards";
+import { AddFromSetPage } from "../pages/collection/AddFromSet";
+import { AddSessionProvider } from "../session/AddSessionContext";
 import { ProfilePage } from "../pages/Profile";
 import { SetDetailPage } from "../pages/SetDetail";
 import { PortfolioPage } from "../pages/Portfolio";
@@ -104,10 +107,24 @@ export function Gate() {
           {/* Authenticated. */}
           <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
           <Route path="/collection" element={<RequireAuth><CollectionPage /></RequireAuth>} />
-          <Route path="/collection/add" element={<RequireAuth><AddCardsPage /></RequireAuth>} />
+          {/* Both entry surfaces share ONE session — the carried condition, the tally and the
+              undo stack survive moving between them. A provider inside either page would die on
+              that navigation, which is the bug this placement prevents. */}
+          <Route
+            path="/collection/add"
+            element={
+              <RequireAuth>
+                <AddSessionProvider><AddCardsPage /></AddSessionProvider>
+              </RequireAuth>
+            }
+          />
           <Route
             path="/collection/add/set/:setCode"
-            element={<RequireAuth><AddCardsPage /></RequireAuth>}
+            element={
+              <RequireAuth>
+                <AddSessionProvider><AddFromSetPage /></AddSessionProvider>
+              </RequireAuth>
+            }
           />
           <Route path="/sealed" element={<RequireAuth><SealedPage /></RequireAuth>} />
           <Route path="/wishlist" element={<RequireAuth><WishlistPage /></RequireAuth>} />

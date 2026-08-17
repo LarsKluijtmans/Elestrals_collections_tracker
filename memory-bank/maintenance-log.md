@@ -45,3 +45,125 @@
 | memory-bank\intents\001-collection-tracker\units\002-card-catalog\unit-brief.md | stories-defined | in-progress | Unit has 2 bolts (0/2 complete) |
 
 ---
+
+## 2026-08-17T16:59:04.950Z - Status Sync
+
+**Triggered by**: status-integrity script
+
+| Artifact | Old Status | New Status | Reason |
+|----------|------------|------------|--------|
+| memory-bank\intents\001-collection-tracker\units\003-inventory-core\stories\013-add-inventory-item.md | ready (not implemented) | complete, implemented: true | Bolt 004-inventory-core is complete but story is not marked complete |
+| memory-bank\intents\001-collection-tracker\units\003-inventory-core\stories\014-edit-inventory-item.md | ready (not implemented) | complete, implemented: true | Bolt 004-inventory-core is complete but story is not marked complete |
+| memory-bank\intents\001-collection-tracker\units\003-inventory-core\stories\015-remove-inventory-item.md | ready (not implemented) | complete, implemented: true | Bolt 004-inventory-core is complete but story is not marked complete |
+| memory-bank\intents\001-collection-tracker\units\003-inventory-core\stories\023-set-completion.md | ready (not implemented) | complete, implemented: true | Bolt 004-inventory-core is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\001-harvest-service\stories\001-harvest-service-skeleton.md | ready (not implemented) | complete, implemented: true | Bolt 010-harvest-service-foundation is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\001-harvest-service\stories\002-harvest-schema-and-grants.md | ready (not implemented) | complete, implemented: true | Bolt 010-harvest-service-foundation is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\001-harvest-service\stories\003-celery-redis-runtime.md | ready (not implemented) | complete, implemented: true | Bolt 010-harvest-service-foundation is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\001-harvest-service\stories\004-source-registry-and-risk-gate.md | ready (not implemented) | complete, implemented: true | Bolt 010-harvest-service-foundation is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\001-harvest-service\stories\005-run-lifecycle-and-sweeper.md | ready (not implemented) | complete, implemented: true | Bolt 010-harvest-service-foundation is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\001-harvest-service\stories\006-rate-limiting-and-identification.md | ready (not implemented) | complete, implemented: true | Bolt 010-harvest-service-foundation is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\002-scrapers\stories\007-source-connector-contract.md | ready (not implemented) | complete, implemented: true | Bolt 011-scraper-connectors is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\002-scrapers\stories\008-deep-scan.md | ready (not implemented) | complete, implemented: true | Bolt 011-scraper-connectors is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\002-scrapers\stories\009-light-scan.md | ready (not implemented) | complete, implemented: true | Bolt 011-scraper-connectors is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\002-scrapers\stories\010-connector-fixtures-and-drift-detection.md | ready (not implemented) | complete, implemented: true | Bolt 011-scraper-connectors is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\002-scrapers\stories\011-block-detection-and-quarantine.md | ready (not implemented) | complete, implemented: true | Bolt 011-scraper-connectors is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\003-matching-and-observations\stories\012-title-to-printing-matcher.md | ready (not implemented) | complete, implemented: true | Bolt 012-matching-and-observations is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\003-matching-and-observations\stories\013-condition-extraction.md | ready (not implemented) | complete, implemented: true | Bolt 012-matching-and-observations is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\003-matching-and-observations\stories\014-observation-store-and-dedupe.md | ready (not implemented) | complete, implemented: true | Bolt 012-matching-and-observations is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\003-matching-and-observations\stories\015-sold-vs-listed-separation.md | ready (not implemented) | complete, implemented: true | Bolt 012-matching-and-observations is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\005-admin-console\stories\023-admin-scope-authorisation.md | ready (not implemented) | complete, implemented: true | Bolt 013-admin-console-core is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\005-admin-console\stories\024-admin-shell-and-routing.md | ready (not implemented) | complete, implemented: true | Bolt 013-admin-console-core is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\005-admin-console\stories\025-listing-explorer.md | ready (not implemented) | complete, implemented: true | Bolt 013-admin-console-core is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\005-admin-console\stories\026-run-history-and-health.md | ready (not implemented) | complete, implemented: true | Bolt 013-admin-console-core is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\005-admin-console\stories\027-trigger-and-watch-a-scan.md | ready (not implemented) | complete, implemented: true | Bolt 013-admin-console-core is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\005-admin-console\stories\028-coverage-and-match-quality.md | ready (not implemented) | complete, implemented: true | Bolt 015-admin-analysis is complete but story is not marked complete |
+| memory-bank\intents\002-price-intelligence\units\005-admin-console\stories\029-price-distribution-and-source-agreement.md | ready (not implemented) | complete, implemented: true | Bolt 015-admin-analysis is complete but story is not marked complete |
+| memory-bank\intents\001-collection-tracker\units\001-platform-foundation\unit-brief.md | in-progress | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\001-collection-tracker\units\002-card-catalog\unit-brief.md | in-progress | stories-defined | Unit has 2 bolts (0/2 complete) |
+| memory-bank\intents\001-collection-tracker\units\003-inventory-core\unit-brief.md | stories-defined | complete | Unit has 1 bolts (1/1 complete) |
+| memory-bank\intents\002-price-intelligence\units\001-harvest-service\unit-brief.md | ready | complete | Unit has 1 bolts (1/1 complete) |
+| memory-bank\intents\002-price-intelligence\units\002-scrapers\unit-brief.md | ready | complete | Unit has 1 bolts (1/1 complete) |
+| memory-bank\intents\002-price-intelligence\units\003-matching-and-observations\unit-brief.md | ready | complete | Unit has 1 bolts (1/1 complete) |
+| memory-bank\intents\002-price-intelligence\units\004-rollups-and-valuation\unit-brief.md | ready | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\002-price-intelligence\units\005-admin-console\unit-brief.md | ready | complete | Unit has 2 bolts (2/2 complete) |
+| memory-bank\intents\002-price-intelligence\units\006-price-surfaces\unit-brief.md | ready | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\002-price-intelligence\units\007-alerts\unit-brief.md | ready | stories-defined | Unit has 1 bolts (0/1 complete) |
+| memory-bank\intents\002-price-intelligence\requirements.md | inception-complete | units-defined | Intent has 7 units (0/7 complete) |
+
+---
+
+## 2026-08-17 — Why the checks had been passing over 10 of 17 bolts
+
+**Triggered by**: a manual reconciliation of intent 001, which found bolts 001–004 recorded as
+`in-progress` with `stages_completed: []` despite four `feat` commits, three test reports and a
+full MySQL verification run behind them.
+
+### Root cause: an LF-only regex against a CRLF working tree
+
+All three scripts in `.specsmd/aidlc/scripts/` read frontmatter with:
+
+```js
+content.match(/^---\n([\s\S]+?)\n---/)
+```
+
+`core.autocrlf=true` is set on this checkout, so git materialises `\r\n`. On such a file the match
+fails, `extractFrontmatter` returns `null`, and **the caller skips the file without reporting it**.
+19 files in the memory bank were CRLF, including 10 of the 17 `bolt.md` files.
+
+The visible symptom was a check that looked clean and was not:
+
+| | Before | After normalising to LF |
+|---|---|---|
+| Bolts scanned | 7 of 17 | **17 of 17** |
+| Intents scanned | 1 of 3 with bolts | **2 of 2 with bolts** |
+| Inconsistencies reported | **0** | **37** |
+
+Every one of the 37 was real. 26 were stories left `ready` under a `complete` bolt — the whole of
+intent 002's construction, which finished on 2026-08-15 and was never propagated because the script
+could not see the bolts that would have triggered it. `story-index.md` recorded
+"`status-integrity.cjs` → 0 inconsistencies" in good faith; the number was true of the seven files
+it read.
+
+This is the same failure mode bolt 013's notes already record for its route-enumeration test: *a
+test that silently checks nothing is worse than no test.* Twice now, in two different tools.
+
+**Fixed** by `.gitattributes` pinning Markdown and everything under `memory-bank/` and `.specsmd/`
+to `eol=lf`, and by normalising the 19 offending files. Patching the regex was the alternative and
+was rejected: `.specsmd/` is vendored at version 0.1.74 and an upgrade would silently undo it.
+
+### Then: `status-integrity.cjs` does not know the word `partial`
+
+Its unit and intent rules branch on `complete` / `in-progress` / `planned` only. A bolt at
+`partial` — code shipped and tested, one criterion open — matches none of them and falls through
+to the `else`, which drags its unit to `stories-defined` and its intent to `units-defined`. Both are
+*less* advanced than reality, and `partial` is the vocabulary this project actually uses (bolts 001,
+002, 003, 005, 014, 016 all carry it, as do six test reports).
+
+So `--fix` was run, and six of its writes were then corrected by hand:
+
+| Artifact | Script wrote | Set to | Because |
+|---|---|---|---|
+| 001-collection-tracker / 001-platform-foundation | stories-defined | `in-progress` | bolt 001 is `partial` — shipped, nine platform criteria unrun |
+| 001-collection-tracker / 002-card-catalog | stories-defined | `in-progress` | bolts 002 and 003 are `partial` |
+| 001-collection-tracker / 004-collection-experience | stories-defined | `in-progress` | bolt 005 is `partial` |
+| 002-price-intelligence / 004-rollups-and-valuation | stories-defined | `in-progress` | bolt 014 is `partial` |
+| 002-price-intelligence / 006-price-surfaces | stories-defined | `in-progress` | bolt 016 is `partial` |
+| 002-price-intelligence / requirements.md | units-defined | `construction` | 27 of 34 stories implemented |
+
+The last row then agreed with the script of its own accord: once the units above read `in-progress`,
+the intent rule's `anyInProgress` branch expects `construction` too.
+
+**Expect `status-integrity.cjs` to report the five unit rows again on every run** until it learns
+`partial`. They are known and deliberate. The 26 story rows and the four unit rows it got right are
+left exactly as it wrote them.
+
+Final state: `artifact-validator.cjs` → **0 issues**. `status-integrity.cjs` → **5**, all five being
+the `partial` disagreement above and nothing else.
+
+### Also found, and not a status problem
+
+`memory-bank/intents/004-card-scanning/` exists — created 2026-08-17, blocked at inception
+Checkpoint 1 — and is **not listed in `project.yaml`**. Neither script looks at intents without
+bolts, so nothing was going to notice. Registered in `project.yaml` as part of this pass.
+
+---

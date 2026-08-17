@@ -3,17 +3,32 @@ id: 003-card-catalog-surface
 unit: 002-card-catalog
 intent: 001-collection-tracker
 type: ddd-construction-bolt
-status: in-progress
+status: partial
 stories:
   - 010-card-search
   - 011-set-browser
   - 012-card-detail
   - 034-admin-catalog-console
 created: 2026-08-09T12:00:00Z
-started: null
+started: 2026-08-10T14:30:00Z
 completed: null
-current_stage: null
-stages_completed: []
+current_stage: done
+stages_completed:
+  - name: model
+    completed: 2026-08-10T15:00:00Z
+    artifact: ddd-01-domain-model.md
+  - name: design
+    completed: 2026-08-10T15:45:00Z
+    artifact: ddd-02-technical-design.md
+  - name: adr-analysis
+    completed: 2026-08-10T16:00:00Z
+    artifact: adr-002-search-implementation.md
+  - name: implement
+    completed: 2026-08-10T16:45:00Z
+    artifact: 5 endpoints, 5 services, core/pagination.py, 5 components, 4 pages
+  - name: test
+    completed: 2026-08-10T17:00:00Z
+    artifact: ddd-03-test-report.md
 
 requires_bolts:
   - 002-card-catalog-schema-import
@@ -80,6 +95,17 @@ An operator can see whether the catalog is healthy.
   **Not met:** the < 150ms p95 target is unmeasurable — no MySQL, and the catalog has no data.
   **Not verified:** MySQL collation/ordering, browser rendering, a full WCAG audit.
 
+  **Two of those three closed on 2026-08-11** (`9eaa5a1`): search p95 measured at **26.9ms** over
+  5,000 synthetic cards against a 150ms budget — 5.6× inside it, and the number ADR-002 was
+  accepted without — and MySQL's own `CASE` tiering and `coalesce` ordering confirmed to rank
+  exact-name first with a stable order across identical queries. The public pages also answered
+  anonymously with `Cache-Control: public` and no `Vary`.
+
+  **Still open, and both need a browser:** the three public pages rendered rather than
+  type-checked, and a full WCAG 2.2 AA pass — contrast ratios, focus visibility and an axe run.
+  Alt text, `aria-activedescendant` and `role=option/listbox` are asserted in tests; the rest of
+  the criterion is not, and the bolt lists it.
+
 ## Dependencies
 
 ### Requires
@@ -90,13 +116,15 @@ An operator can see whether the catalog is healthy.
 
 ## Success Criteria
 
-- [ ] 3-character prefix returns ranked results in < 150ms p95
-- [ ] Results keyboard-navigable and selectable with `Enter` — the add flow depends on this contract
-- [ ] Card detail lists every printing with rarity as a material and element as a named tinted chip
-- [ ] `/admin/catalog` shows runs, staleness and rejections; non-operator gets 403
-- [ ] All three public pages work signed out
-- [ ] WCAG 2.2 AA, including alt text `"{name} — {set} {rarity}"`
-- [ ] Coverage > 80%
+- [x] 3-character prefix returns ranked results in < 150ms p95 — **26.9ms** at 5,000 cards
+- [x] Results keyboard-navigable and selectable with `Enter` — the add flow depends on this
+      contract, and bolt 005 now consumes it under test
+- [x] Card detail lists every printing with rarity as a material and element as a named tinted chip
+- [x] `/admin/catalog` shows runs, staleness and rejections; non-operator gets 403
+- [x] All three public pages work signed out — 200 with no `Authorization`, `Cache-Control: public`
+- [ ] WCAG 2.2 AA, including alt text `"{name} — {set} {rarity}"` — alt text and the ARIA
+      relationships are asserted; contrast, focus visibility and an axe pass are **not**
+- [x] Coverage > 80% — 97% on this bolt's modules
 
 ## Notes
 

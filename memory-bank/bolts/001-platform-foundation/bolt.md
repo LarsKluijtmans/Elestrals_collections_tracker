@@ -3,7 +3,7 @@ id: 001-platform-foundation
 unit: 001-platform-foundation
 intent: 001-collection-tracker
 type: simple-construction-bolt
-status: in-progress
+status: partial
 stories:
   - 001-sign-in-with-platform
   - 002-app-shell-and-routing
@@ -12,10 +12,19 @@ stories:
   - 005-platform-log-forwarding
   - 006-usage-metering
 created: 2026-08-09T12:00:00Z
-started: null
+started: 2026-08-09T13:00:00Z
 completed: null
-current_stage: null
-stages_completed: []
+current_stage: done
+stages_completed:
+  - name: plan
+    completed: 2026-08-09T15:00:00Z
+    artifact: implementation-plan.md
+  - name: implement
+    completed: 2026-08-09T19:00:00Z
+    artifact: frontend/, backend/
+  - name: test
+    completed: 2026-08-09T20:00:00Z
+    artifact: test-report.md
 
 requires_bolts: []
 enables_bolts:
@@ -67,12 +76,25 @@ bolts start at 002, where the domain actually begins.
 
 - ✅ **1. plan**: Complete → `implementation-plan.md`
 - ✅ **2. implement**: Complete → `frontend/`, `backend/`
-- ⏳ **3. test**: Partial → `test-report.md` ← current
+- ⏳ **3. test**: Partial → `test-report.md`
 
 All six stories implemented. 10 backend tests pass; frontend typechecks and builds clean.
 Nine acceptance criteria remain unverified because they need a **running platform** — sign-in,
 both blocking checks, the branding round-trip, `app_logs` rows, console visibility and the
 logs-api-down path. See the test report. The bolt closes when those are exercised.
+
+**Partially closed since**, and worth not re-testing:
+
+- Sign-in and the deep-link round trip were reworked in `e36bda8` when `hostedLoginUrl` moved the
+  flow from an embedded form to a redirect. The criterion still holds; it is no longer free, and
+  `Gate` now stashes the requested path in `sessionStorage` to keep it.
+- `app_logs` written by the real logging path was confirmed against the platform's own MySQL in
+  `9eaa5a1` (`verify_mysql.py`, step [11]).
+
+**Still open, and each needs the platform rather than code:** JWT `sub` stability across an email
+change · all seven M2M scopes actually granted · the branding round-trip · errors and a
+feature-usage event visible in the platform console · logs-api stopped and requests still
+succeeding · token-validation and logging p95.
 
 ## Dependencies
 

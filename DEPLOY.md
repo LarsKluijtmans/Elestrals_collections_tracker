@@ -124,6 +124,50 @@ curl http://127.0.0.1:9530/api/v1/health     # through the nginx proxy
 docker compose ps                            # both should read (healthy)
 ```
 
+## Running the harvester by hand
+
+The scrapers run on a beat schedule, but every step of the pipeline can be driven manually — which
+is how you check whether a source still parses, or see the effect of a change without waiting for
+the interval.
+
+**From the admin console** (`/admin/harvest`, needs `elestrals:admin`):
+
+| Control | Does |
+|---|---|
+| Run light scan / Run deep scan | queues a scan for that source; the run row appears immediately and its counters poll live |
+| Stop | sets a flag the scan checks between queries, so it stops at a clean boundary and closes its own run row |
+| **Recompute prices** | rebuilds `price_daily` for the chosen window, synchronously, and reports what it published |
+| **Sweep stale runs** | fails runs orphaned by a deploy, so a stuck `running` row stops refusing a new scan |
+
+The console needs `harvest-worker` and `harvest-redis` up: the trigger queues the work rather than
+running it in the request. If the broker is down the trigger answers `503` and closes the run row
+rather than leaving a phantom `running` behind. `Recompute prices` and `Sweep stale runs` are
+synchronous and need neither.
+
+**From the CLI**, which runs the scan **in-process** and therefore needs no worker and no Redis —
+this is the one to reach for when the queue itself is what you are debugging:
+
+```bash
+docker compose exec harvest-api python -m app.harvest --list
+docker compose exec harvest-api python -m app.harvest --source ebay_sold --mode light
+docker compose exec harvest-api python -m app.harvest --source ebay_sold --mode deep
+docker compose exec harvest-api python -m app.harvest --rollup    # full rebuild, no window cap
+docker compose exec harvest-api python -m app.harvest --sweep
+```
+
+`--enable` requires both `--note` and `--accepted-by`, and there is no flag to skip either — that is
+ADR-004 rather than ceremony. A risk accepted by nobody in particular, on the basis of a review
+nobody wrote, is not an accepted risk.
+
+Two things worth knowing:
+
+- **A scan alone changes nothing a collector sees.** It writes `price_observations`; `/prices`,
+  `/portfolio` and the card price tab all read `price_daily`. Recompute after scanning, or wait for
+  the beat.
+- **The rollup is a projection, so re-running it is always safe** and always the fix for a wrong
+  number. The console's window is capped at 90 days because a synchronous full-history rebuild
+  inside an HTTP request is a timeout waiting to happen; `--rollup` on the CLI has no cap.
+
 ## Publishing hostnames
 
 In Cloudflare Zero Trust → your tunnel → Public Hostnames:

@@ -2,11 +2,11 @@
 id: 010-connector-fixtures-and-drift-detection
 unit: 002-scrapers
 intent: 002-price-intelligence
-status: ready
+status: complete
 priority: must
-created: 2026-08-15T15:00:00Z
+created: '2026-08-15T15:00:00Z'
 assigned_bolt: 011-scraper-connectors
-implemented: false
+implemented: true
 ---
 
 # Story: 010-connector-fixtures-and-drift-detection

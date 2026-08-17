@@ -183,4 +183,26 @@ class TriggerAccepted(BaseModel):
     status: str
 
 
+class RollupRun(BaseModel):
+    """The result of a manual `price_daily` recompute.
+
+    `days` is how many days actually *had* observations in the window, not the window's length —
+    a rollup over a week where only two days were scanned reports 2, and an admin who expected 7
+    has learnt something real about their data.
+    """
+
+    since: date
+    since_days: int
+    days: int
+    rows: int
+    excluded: int
+    #: Echoed so the console can say where the synchronous path stops without hardcoding it.
+    max_since_days: int
+
+
+class SweepResult(BaseModel):
+    swept: int
+    stale_after_minutes: int
+
+
 SourceHealth.model_rebuild()

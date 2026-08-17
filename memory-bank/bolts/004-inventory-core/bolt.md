@@ -3,17 +3,29 @@ id: 004-inventory-core
 unit: 003-inventory-core
 intent: 001-collection-tracker
 type: ddd-construction-bolt
-status: in-progress
+status: complete
 stories:
   - 013-add-inventory-item
   - 014-edit-inventory-item
   - 015-remove-inventory-item
   - 023-set-completion
 created: 2026-08-09T12:00:00Z
-started: null
-completed: null
-current_stage: null
-stages_completed: []
+started: 2026-08-10T18:00:00Z
+completed: 2026-08-11T23:00:00Z
+current_stage: done
+stages_completed:
+  - name: model
+    completed: 2026-08-10T19:00:00Z
+    artifact: ddd-01-domain-model.md
+  - name: design
+    completed: 2026-08-10T21:00:00Z
+    artifact: ddd-02-technical-design.md
+  - name: implement
+    completed: 2026-08-11T09:00:00Z
+    artifact: 2 models, 0003_inventory.py, 2 repositories, 2 services, 5 endpoints
+  - name: test
+    completed: 2026-08-11T23:00:00Z
+    artifact: ddd-03-test-report.md
 
 requires_bolts:
   - 002-card-catalog-schema-import
@@ -65,11 +77,13 @@ enforced in the database and the service layer — not in the UI.
   discriminator) constrains one table, and is recorded in the design and test report.
 - ✅ **4. implement**: Complete → 2 models, `0003_inventory.py`, 2 repositories, 2 services,
   5 endpoints
-- ⏳ **5. test**: **Partial** → `ddd-03-test-report.md`
+- ✅ **5. test**: Complete → `ddd-03-test-report.md`
 
   157 tests pass (38 new) · 92% on bolt-004 modules · concurrent double-add proven with two
-  real threads on two connections. **Not met:** the write p95 < 200ms and recompute < 50ms
-  targets are unmeasured — they need MySQL.
+  real threads on two connections. The report was written `partial` on the strength of one
+  unmeasured criterion; the verification run on **2026-08-11** closed it — `scripts/bench.py`
+  measured **write p95 16.1ms** against a 200ms budget and **recompute p95 5.4ms** against 50ms,
+  and `scripts/verify_mysql.py` proved four concurrent adds collapse to one row on MySQL itself.
 
 ## Dependencies
 
@@ -81,15 +95,16 @@ enforced in the database and the service layer — not in the UI.
 
 ## Success Criteria
 
-- [ ] Same printing+condition added twice → one row, quantity 2
-- [ ] Same printing graded PSA 9 and PSA 10 → two rows
-- [ ] **Concurrent** double-add → quantity 2, not two rows (tested under real concurrency)
-- [ ] Another user's item id → 404, never 403
-- [ ] Completion correct immediately after a write, no refresh, and never disagreeing with inventory
-- [ ] Completion rebuild command regenerates the whole projection from inventory
-- [ ] Write p95 < 200ms including recompute; recompute itself < 50ms p95
-- [ ] An explicit cross-user access test exists for **every** endpoint
-- [ ] Coverage > 80%
+- [x] Same printing+condition added twice → one row, quantity 2
+- [x] Same printing graded PSA 9 and PSA 10 → two rows — and two PSA 9s also stay two rows
+- [x] **Concurrent** double-add → quantity 2, not two rows (tested under real concurrency) — two
+      threads on SQLite, and four on MySQL in `verify_mysql.py`
+- [x] Another user's item id → 404, never 403
+- [x] Completion correct immediately after a write, no refresh, and never disagreeing with inventory
+- [x] Completion rebuild command regenerates the whole projection from inventory
+- [x] Write p95 < 200ms including recompute; recompute itself < 50ms p95 — **16.1ms / 5.4ms**
+- [x] An explicit cross-user access test exists for **every** endpoint
+- [x] Coverage > 80% — 92%
 
 ## Notes
 

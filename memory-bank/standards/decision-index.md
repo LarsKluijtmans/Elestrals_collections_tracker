@@ -1,6 +1,6 @@
 ---
-last_updated: 2026-08-15T14:40:00Z
-total_decisions: 4
+last_updated: 2026-08-15T17:35:00Z
+total_decisions: 5
 ---
 
 # Decision Index
@@ -17,6 +17,24 @@ Use this to find relevant prior decisions when working on related features.
 ---
 
 ## Decisions
+
+### ADR-005: Undo adjusts by a delta, and carries the quantity it expects
+- **Status**: accepted
+- **Date**: 2026-08-15
+- **Bolt**: 005-collection-entry (004-collection-experience)
+- **Path**: `bolts/005-collection-entry/adr-005-delta-adjust-compare-and-swap.md`
+- **Summary**: Story 018 requires undo to reverse a *delta* rather than a row, and to refuse rather
+  than guess when the holding changed outside the session — but bolt 004's writes are add, absolute
+  edit and delete, none of which can express that. A new `POST /inventory/{id}/adjust` takes a
+  signed `delta` plus an `expected_quantity` and resolves both in one compare-and-swap `UPDATE`,
+  so ownership and concurrency are checked in the same statement with no window between them and
+  the quantity doubles as the version token. Client-side read-then-write over `PATCH` was rejected
+  because it reintroduces one layer up the exact race bolt 004's atomic upsert eliminated, and the
+  fast-add flow fires concurrent requests by design.
+- **Read when**: adding any inventory write endpoint, anything that changes a quantity, undo or
+  bulk actions, optimistic concurrency, `409` handling, or any question about why there are four
+  inventory writes rather than three — and before writing a caller that fetches a row just to fill
+  in `expected_quantity`.
 
 ### ADR-004: Scrape rather than licence — the cost is declined and the risk is accepted
 - **Status**: **accepted** — the human decision ADR-003 was waiting for

@@ -23,10 +23,17 @@ platform:
 intents:
   - id: 001-collection-tracker
     phase: 1
-    status: inception-complete
+    status: construction
   - id: 002-price-intelligence
     phase: 2
-    status: inception-complete
+    status: construction
   - id: 003-marketplace
     phase: 3
     status: outline
+  # Created 2026-08-17 and blocked at inception Checkpoint 1 on four unanswered questions.
+  # It was absent from this list for a day: neither `status-integrity.cjs` nor
+  # `artifact-validator.cjs` walks an intent that has no bolts yet, so nothing was going to
+  # notice. `phase` is deliberately null — shipping order is undecided against `003`.
+  - id: 004-card-scanning
+    phase: null
+    status: inception

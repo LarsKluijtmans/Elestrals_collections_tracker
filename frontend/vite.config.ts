@@ -17,5 +17,15 @@ export default defineConfig({
     // Components only. The API contract is tested against the real FastAPI app in
     // backend/tests; mocking it here as well would only assert that the mock matches itself.
     include: ["src/**/*.test.{ts,tsx}"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "text-summary"],
+      // Scoped to the code that carries rules, not the whole app. A coverage number averaged
+      // over page shells and generated locale files says nothing about whether the rules a
+      // collection depends on are exercised — which is the question the threshold is asking.
+      include: ["src/session/**", "src/components/add/**"],
+      exclude: ["src/**/*.test.{ts,tsx}"],
+      thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
+    },
   },
 });

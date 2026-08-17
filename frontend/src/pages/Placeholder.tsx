@@ -44,12 +44,7 @@ export const CollectionPage = () => (
   </Placeholder>
 );
 
-export const AddCardsPage = () => (
-  <Placeholder title="Add cards" bolt="bolt 005">
-    The keyboard-first entry flow — type, arrow, Enter — targeting a median add under five
-    seconds and 100 cards in under ten minutes.
-  </Placeholder>
-);
+// AddCardsPage is no longer a placeholder — bolt 005 built it. See pages/collection/AddCards.tsx.
 
 export const SetsPage = () => (
   <Placeholder title="Sets" bolt="bolt 003">

@@ -83,6 +83,8 @@ function SourcesPanel() {
         <Alert severity="warning">{(trigger.error as Error).message}</Alert>
       ) : null}
 
+      <PipelineControls />
+
       {sources.data?.map((source) => (
         <Paper key={source.key} sx={{ p: 2 }}>
           <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -175,6 +177,109 @@ function SourcesPanel() {
         </Paper>
       ))}
     </Stack>
+  );
+}
+
+/**
+ * Running the rest of the pipeline by hand.
+ *
+ * A scan writes **observations**. Nothing a collector sees moves until `price_daily` is recomputed,
+ * and that used to happen only on the beat schedule — so triggering a scan to check a fix meant
+ * waiting out the interval or shelling into a container. These two buttons are what make the
+ * manual path actually usable end to end: scan → recompute → look at `/prices`.
+ *
+ * The recompute is synchronous and window-bounded (the cap comes from the API rather than being
+ * repeated here). A full-history rebuild is deliberately not offered: it is a job, not a request,
+ * and it lives on the CLI as `python -m app.harvest --rollup`.
+ */
+function PipelineControls() {
+  const { getAccessToken } = useAuth();
+  const client = useQueryClient();
+  const [sinceDays, setSinceDays] = useState(7);
+
+  const rollup = useMutation({
+    mutationFn: () => harvestApi.recomputeRollup(getAccessToken, sinceDays),
+    // Prices and coverage both read what this just rewrote.
+    onSettled: () => client.invalidateQueries({ queryKey: ["harvest"] }),
+  });
+  const sweep = useMutation({
+    mutationFn: () => harvestApi.sweepStaleRuns(getAccessToken),
+    onSettled: () => client.invalidateQueries({ queryKey: ["harvest"] }),
+  });
+
+  return (
+    <Paper sx={{ p: 2 }}>
+      <Typography variant="overline" color="text.secondary">
+        Pipeline
+      </Typography>
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{ alignItems: "flex-start", flexWrap: "wrap", mt: 1 }}
+      >
+        <TextField
+          select
+          size="small"
+          label="Recompute"
+          value={sinceDays}
+          onChange={(event) => setSinceDays(Number(event.target.value))}
+          sx={{ minWidth: 150 }}
+        >
+          <MenuItem value={1}>Today</MenuItem>
+          <MenuItem value={7}>Last 7 days</MenuItem>
+          <MenuItem value={30}>Last 30 days</MenuItem>
+          <MenuItem value={90}>Last 90 days</MenuItem>
+        </TextField>
+
+        <Button
+          size="small"
+          variant="contained"
+          disabled={rollup.isPending}
+          onClick={() => rollup.mutate()}
+        >
+          {rollup.isPending ? "Recomputing…" : "Recompute prices"}
+        </Button>
+
+        <Tooltip title="Fail runs orphaned by a deploy, so a stuck 'running' row stops refusing a new scan">
+          <Button size="small" disabled={sweep.isPending} onClick={() => sweep.mutate()}>
+            Sweep stale runs
+          </Button>
+        </Tooltip>
+
+        <Box sx={{ flex: 1, minWidth: 260 }}>
+          {rollup.isError ? (
+            <Alert severity="warning">{(rollup.error as Error).message}</Alert>
+          ) : null}
+          {sweep.isError ? (
+            <Alert severity="warning">{(sweep.error as Error).message}</Alert>
+          ) : null}
+
+          {rollup.data ? (
+            <Alert severity={rollup.data.days === 0 ? "info" : "success"}>
+              {rollup.data.days === 0
+                ? `No observations since ${rollup.data.since} — nothing to publish.`
+                : `Recomputed ${rollup.data.days} day${rollup.data.days === 1 ? "" : "s"} ` +
+                  `since ${rollup.data.since}: ${rollup.data.rows} published, ` +
+                  `${rollup.data.excluded} point${rollup.data.excluded === 1 ? "" : "s"} ` +
+                  `excluded as outliers.`}
+            </Alert>
+          ) : null}
+          {sweep.data ? (
+            <Alert severity={sweep.data.swept === 0 ? "info" : "warning"}>
+              {sweep.data.swept === 0
+                ? `Nothing older than ${sweep.data.stale_after_minutes} minutes was stuck.`
+                : `Swept ${sweep.data.swept} stale run${sweep.data.swept === 1 ? "" : "s"} to failed.`}
+            </Alert>
+          ) : null}
+        </Box>
+      </Stack>
+
+      <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1.5 }}>
+        The rollup also runs on a schedule. Recompute here after a manual scan to see its prices
+        without waiting. For a full rebuild over all history, run{" "}
+        <code>python -m app.harvest --rollup</code>.
+      </Typography>
+    </Paper>
   );
 }
 

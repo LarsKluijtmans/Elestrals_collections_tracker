@@ -73,6 +73,7 @@ def _quiet_logs(monkeypatch):
         "app.main",
         "app.controllers.admin_sources",
         "app.controllers.admin_runs",
+        "app.controllers.admin_maintenance",
     ):
         monkeypatch.setattr(f"{module}.log_event", lambda *a, **k: None)
 

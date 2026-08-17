@@ -3,16 +3,31 @@ id: 002-card-catalog-schema-import
 unit: 002-card-catalog
 intent: 001-collection-tracker
 type: ddd-construction-bolt
-status: in-progress
+status: partial
 stories:
   - 007-catalog-schema
   - 008-catalog-importer
   - 009-import-run-reporting
 created: 2026-08-09T12:00:00Z
-started: null
+started: 2026-08-09T20:00:00Z
 completed: null
-current_stage: null
-stages_completed: []
+current_stage: done
+stages_completed:
+  - name: spike
+    completed: 2026-08-10T09:00:00Z
+    artifact: adr-001-catalog-data-source.md
+  - name: model
+    completed: 2026-08-10T10:30:00Z
+    artifact: ddd-01-domain-model.md
+  - name: design
+    completed: 2026-08-10T12:00:00Z
+    artifact: ddd-02-technical-design.md
+  - name: implement
+    completed: 2026-08-10T13:30:00Z
+    artifact: backend/app/importer/, 0002_catalog.py, 6 models, 4 repositories, 3 services
+  - name: test
+    completed: 2026-08-10T14:20:00Z
+    artifact: ddd-03-test-report.md
 
 requires_bolts:
   - 001-platform-foundation
@@ -88,6 +103,15 @@ file.
   scraping and fabricating 126 cards would poison the catalog. Needs hand-compiled data,
   not code. **Not verified:** anything requiring a live MySQL.
 
+  **The MySQL half closed on 2026-08-11** (`9eaa5a1`): migrations `0001`–`0003` applied clean to
+  MySQL 8.4, `verify_mysql.py` 24/24, and a re-import over unchanged sources reported 0 added /
+  0 updated / 5,000 unchanged against MySQL's own `ON DUPLICATE KEY UPDATE` — the idempotency
+  claim the bolt rests on, previously asserted only against emitted SQL. Full import 34.4s
+  against a 15-minute budget.
+
+  **So this bolt is `partial` on exactly one thing, and it is not code:** nobody has compiled
+  FE01's 126 cards. Until they do, the catalog is a working importer over an empty set.
+
 ## Dependencies
 
 ### Requires
@@ -99,14 +123,19 @@ file.
 
 ## Success Criteria
 
-- [ ] One real set imported: every card, every printing, correct rarities
-- [ ] Second run over unchanged sources: 0 added, 0 updated
-- [ ] A normalisation failure rejects the record whole, with a reason
-- [ ] `robots.txt` respected, rate limits enforced, real user agent with contact address
-- [ ] Adding a source = one adapter file + one config row
-- [ ] Full re-import < 15 minutes
-- [ ] Fixture-driven normaliser tests per source
-- [ ] Coverage > 80%
+- [ ] One real set imported: every card, every printing, correct rarities — **the one open
+      criterion.** `FE01.csv` ships with a header and no rows; this needs hand-compiled data
+- [x] Second run over unchanged sources: 0 added, 0 updated — on MySQL's own
+      `ON DUPLICATE KEY UPDATE`, 5,000 unchanged
+- [x] A normalisation failure rejects the record whole, with a reason
+- [~] `robots.txt` respected, rate limits enforced, real user agent with contact address —
+      **moot for this bolt.** ADR-001 replaced the scraped source with a curated CSV seed, so
+      nothing here fetches anything. The rule itself is live in `harvest/app/harvest/http.py`,
+      where there *is* a scraper
+- [x] Adding a source = one adapter file + one config row
+- [x] Full re-import < 15 minutes — 34.4s at 5,000 cards
+- [x] Fixture-driven normaliser tests per source
+- [x] Coverage > 80% — 91% on this bolt's modules
 
 ## Notes
 

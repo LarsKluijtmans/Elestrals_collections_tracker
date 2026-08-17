@@ -2,7 +2,7 @@
 unit: 002-scrapers
 intent: 002-price-intelligence
 phase: inception
-status: ready
+status: complete
 created: '2026-08-15T14:55:00Z'
 updated: '2026-08-15T14:55:00Z'
 ---

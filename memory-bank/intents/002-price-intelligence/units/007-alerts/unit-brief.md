@@ -2,7 +2,7 @@
 unit: 007-alerts
 intent: 002-price-intelligence
 phase: inception
-status: ready
+status: stories-defined
 created: '2026-08-15T14:55:00Z'
 updated: '2026-08-15T14:55:00Z'
 ---

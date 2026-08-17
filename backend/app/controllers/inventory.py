@@ -15,6 +15,8 @@ from ..models.inventory_item import InventoryItem
 from ..schemas import (
     AddInventoryRequest,
     AddInventoryResponse,
+    AdjustInventoryRequest,
+    AdjustInventoryResponse,
     CompletionResponse,
     ErrorResponse,
     InventoryItemResponse,
@@ -24,7 +26,9 @@ from ..schemas import (
 )
 from ..security import Principal
 from ..services.completion_service import CompletionService
-from ..services.inventory_service import InventoryError, InventoryService, ItemFields
+from ..services.inventory_service import (
+    InventoryError, InventoryService, ItemChanged, ItemFields,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["inventory"])
 
@@ -137,6 +141,53 @@ def patch_item(
     except InventoryError as exc:
         raise _as_error(exc) from None
     return _view(item)
+
+
+@router.post(
+    "/inventory/{item_id}/adjust",
+    response_model=AdjustInventoryResponse,
+    summary="Change a quantity by a delta, only if it is still what the caller expects",
+    responses={
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+        400: {"model": ErrorResponse},
+    },
+)
+def adjust_item(
+    item_id: str,
+    body: AdjustInventoryRequest,
+    principal: Principal = Depends(current_principal),
+    svc: InventoryService = Depends(inventory_service),
+) -> AdjustInventoryResponse:
+    """The undo primitive — ADR-005.
+
+    Four inventory writes now exist and it is worth being clear which to call:
+
+        POST   /inventory              add copies (merges into an existing ungraded row)
+        PATCH  /inventory/{id}         set fields to absolute values
+        POST   /inventory/{id}/adjust  change the quantity by a delta, if unchanged  ← this
+        DELETE /inventory/{id}         remove the row outright
+
+    `adjust` exists because undo has to reverse *a delta* rather than a row, and has to refuse
+    rather than guess when somebody else moved the row. Doing that over `PATCH` means reading,
+    computing and writing — three operations with two windows — in a flow that fires concurrent
+    requests by design.
+    """
+    try:
+        result = svc.adjust(
+            principal.sub,
+            item_id,
+            delta=body.delta,
+            expected_quantity=body.expected_quantity,
+        )
+    except ItemChanged as exc:
+        raise _err(exc.status, exc.code, str(exc),
+                   expected=exc.expected, actual=exc.actual) from None
+    except InventoryError as exc:
+        raise _as_error(exc) from None
+    return AdjustInventoryResponse(
+        item_id=result.item_id, quantity=result.quantity, deleted=result.deleted
+    )
 
 
 @router.delete(

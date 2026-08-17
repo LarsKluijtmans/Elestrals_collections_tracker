@@ -25,7 +25,7 @@ from app.repositories.set_completion_repository import SetCompletionRepository
 from app.repositories.set_repository import SetRepository
 from app.services.catalog_read_service import CardSearchService
 from app.services.completion_service import CompletionService
-from app.services.inventory_service import InventoryService
+from app.services.inventory_service import InventoryService, ItemChanged
 
 Session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
 USER = "verify-user-001"
@@ -183,7 +183,64 @@ def main() -> int:
           f"qty={rows[0].quantity if rows else '-'}")
     db.close()
 
-    print("\n[8] Completion recomputed in the same transaction")
+    print("\n[8] Concurrent undos on MySQL — the compare-and-swap ADR-005 rests on")
+    # The unit tests prove `compare_and_adjust` is one atomic statement on SQLite. What is only
+    # verifiable here is that MySQL's row locking resolves the race the same way: of two undos
+    # carrying the same `expected_quantity`, exactly one matches and the other is refused. A
+    # read-compare-write would let both read 4, both decide the row is unchanged, and both write
+    # 3 — losing a copy with no error anywhere.
+    # The row the four concurrent adds above built, so this runs against a real quantity of 4.
+    db = Session()
+    target = db.scalars(select(InventoryItem).where(
+        InventoryItem.user_sub == USER, InventoryItem.printing_id == pid_holo,
+        InventoryItem.is_graded.is_(False))).first()
+    target_id, start_qty = target.id, target.quantity
+    db.close()
+
+    barrier2 = threading.Barrier(2)
+    verdicts: list[str] = []
+    verdict_lock = threading.Lock()
+
+    def undoer():
+        s = Session()
+        try:
+            barrier2.wait(timeout=20)
+            build_service(s).adjust(USER, target_id, delta=-1, expected_quantity=start_qty)
+            outcome = "applied"
+        except ItemChanged:
+            outcome = "refused"
+        except Exception as exc:  # noqa: BLE001
+            outcome = f"error: {type(exc).__name__}: {exc}"
+        finally:
+            s.close()
+        with verdict_lock:
+            verdicts.append(outcome)
+
+    undo_threads = [threading.Thread(target=undoer) for _ in range(2)]
+    for t in undo_threads:
+        t.start()
+    for t in undo_threads:
+        t.join(timeout=40)
+
+    db = Session()
+    after = InventoryRepository(db).get(USER, target_id)
+    check("exactly one concurrent undo applied", verdicts.count("applied") == 1, str(verdicts))
+    check("the loser was refused, not an error", verdicts.count("refused") == 1, str(verdicts))
+    check("quantity dropped by exactly one",
+          after is not None and after.quantity == start_qty - 1,
+          f"qty={after.quantity if after else '-'} (was {start_qty})")
+    db.close()
+
+    print("\n[9] Adjusting to zero deletes the row rather than storing a zero")
+    db = Session()
+    inv = build_service(db)
+    single = inv.add(USER, printing_id=pid_common, condition="damaged").item
+    result = inv.adjust(USER, single.id, delta=-1, expected_quantity=single.quantity)
+    check("adjust to zero reports deleted", result.deleted is True)
+    check("the row is gone", InventoryRepository(db).get(USER, single.id) is None)
+    db.close()
+
+    print("\n[10] Completion recomputed in the same transaction")
     db = Session()
     completion = CompletionService(SetCompletionRepository(db), SetRepository(db))
     view = [v for v in completion.view(USER) if v.set_code == SET_CODE]
@@ -195,7 +252,7 @@ def main() -> int:
         check("ratio is 1/3", abs(v.ratio - 1 / 3) < 1e-9, f"ratio={v.ratio:.3f}")
     db.close()
 
-    print("\n[9] app_logs written by the real logging path")
+    print("\n[11] app_logs written by the real logging path")
     db = Session()
     log_count = db.scalar(text("SELECT COUNT(*) FROM app_logs"))
     check("log_event wrote rows to MySQL", log_count > 0, f"rows={log_count}")

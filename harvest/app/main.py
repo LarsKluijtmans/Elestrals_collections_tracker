@@ -18,7 +18,9 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import settings
-from .controllers import admin_analysis, admin_listings, admin_runs, admin_sources, health
+from .controllers import (
+    admin_analysis, admin_listings, admin_maintenance, admin_runs, admin_sources, health,
+)
 from .services.logging_service import log_event
 
 
@@ -102,3 +104,4 @@ app.include_router(admin_sources.router)
 app.include_router(admin_runs.router)
 app.include_router(admin_listings.router)
 app.include_router(admin_analysis.router)
+app.include_router(admin_maintenance.router)

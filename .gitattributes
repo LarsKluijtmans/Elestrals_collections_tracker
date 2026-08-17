@@ -1,0 +1,21 @@
+# Line endings.
+#
+# `core.autocrlf=true` on a Windows checkout hands CRLF to everything that reads the working tree.
+# That is normally harmless — but the AI-DLC scripts in `.specsmd/` parse artifact frontmatter with
+# an LF-only regex:
+#
+#     content.match(/^---\n([\s\S]+?)\n---/)
+#
+# On a CRLF file that match fails, `extractFrontmatter` returns null, and the caller **skips the
+# file without saying so**. `status-integrity.cjs` then reports "0 inconsistencies" over artifacts
+# it never opened: on 2026-08-17 it was scanning 7 of 17 bolts and calling the result clean, which
+# is how five complete bolts kept stories marked `ready` with nobody noticing.
+#
+# Pinning Markdown to LF in the *working tree* is what fixes that for good. Patching the regex
+# would work until the next `.specsmd` upgrade overwrote it.
+*.md text eol=lf
+
+# The memory bank is the artifact hierarchy those scripts walk. Everything in it, whatever the
+# extension, is read by a tool at some point.
+memory-bank/** text eol=lf
+.specsmd/** text eol=lf

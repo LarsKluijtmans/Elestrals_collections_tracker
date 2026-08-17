@@ -2,11 +2,11 @@
 id: 012-title-to-printing-matcher
 unit: 003-matching-and-observations
 intent: 002-price-intelligence
-status: ready
+status: complete
 priority: must
-created: 2026-08-15T15:00:00Z
+created: '2026-08-15T15:00:00Z'
 assigned_bolt: 012-matching-and-observations
-implemented: false
+implemented: true
 ---
 
 # Story: 012-title-to-printing-matcher

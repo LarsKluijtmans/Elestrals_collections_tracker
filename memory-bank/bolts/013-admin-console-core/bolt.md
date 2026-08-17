@@ -137,3 +137,32 @@ asserts a minimum route count as well.
 the only way in is the development `sub` allowlist, which is inert in production by design - so on
 a production deployment today nobody can reach the console at all. That is the correct failure, but
 it is a failure.
+
+## Addition - 2026-08-17: the manual path only went half way
+
+Story 027 gave an admin a scan they could start and watch. What it did not give them was a way to
+see the *result* — a scan writes `price_observations`, and every collector-facing figure reads
+`price_daily`, which was recomputed only by the beat. So triggering a scan to check a fix meant
+waiting out `HARVEST_ROLLUP_EVERY_MINUTES` or shelling into the container to run `--rollup`. The
+manual trigger was therefore least useful for the thing it is most needed for.
+
+Two endpoints close the loop, in a new `controllers/admin_maintenance.py`:
+
+| Route | Behaviour |
+|---|---|
+| `POST /admin/maintenance/rollup?since_days=N` | rebuilds `price_daily` over the window, **synchronously**, returning days / rows / points-excluded |
+| `POST /admin/maintenance/sweep` | fails orphaned runs on demand, so a stuck `running` row stops refusing a new scan |
+
+Both sit behind `require_admin` with the rest, and a **Pipeline** panel in the console exposes them.
+
+**Two decisions worth keeping.** The rollup is *synchronous*, unlike a scan, because seconds of work
+wants an answer rather than a task id with nowhere to poll — a rollup has no run row. That is only
+safe because the window is *capped* at 90 days: an unbounded full-history rebuild inside an HTTP
+request is a timeout waiting to happen, so it stays on the CLI where it has neither cap nor request
+to time out. `13` tests in `test_admin_maintenance.py`, including that the window cap holds, that
+re-running publishes byte-identical results, and that a late observation *changes* the past rather
+than appending beside it.
+
+`DEPLOY.md` now documents the whole manual path — console and CLI — including that the CLI runs a
+scan **in-process**, so it needs neither worker nor Redis and is what to reach for when the queue is
+itself what is being debugged.

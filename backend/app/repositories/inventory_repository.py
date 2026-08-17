@@ -9,7 +9,9 @@ a stranger that an id exists but is not theirs is an enumeration oracle.
 """
 from __future__ import annotations
 
-from sqlalchemy import delete, func, select
+from datetime import datetime, timezone
+
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
@@ -179,6 +181,48 @@ class InventoryRepository:
             )
         )
         self._db.flush()
+        return (result.rowcount or 0) > 0
+
+    def compare_and_adjust(
+        self, user_sub: str, item_id: str, *, delta: int, expected: int
+    ) -> bool:
+        """Change a quantity by `delta`, but only if it is still `expected`. **One statement.**
+
+        ADR-005. Ownership and optimistic concurrency are the same `WHERE` clause, so there is no
+        window between checking who owns the row and checking that nobody has moved it. The
+        alternative — read, compare, write — is the race bolt 004's atomic upsert eliminated,
+        reintroduced one layer up, and the undo path is where it would actually bite: the fast-add
+        flow fires concurrent requests by design and a user can hold `Ctrl+Z`.
+
+        Returns whether the row matched. `False` means wrong owner **or** stale expectation, and
+        this method deliberately cannot tell you which — the caller resolves that with an
+        owner-scoped read, so a stranger never learns that an id exists.
+
+        Reaching zero **deletes** rather than updating: `quantity > 0` is a CHECK constraint, and
+        bolt 004 is explicit that a zero-quantity row is a deletion that did not happen.
+        """
+        target = expected + delta
+        if target < 0:
+            return False
+
+        scope = (
+            InventoryItem.id == item_id,
+            InventoryItem.user_sub == user_sub,
+            InventoryItem.quantity == expected,
+        )
+        if target == 0:
+            result = self._db.execute(delete(InventoryItem).where(*scope))
+        else:
+            result = self._db.execute(
+                update(InventoryItem)
+                .where(*scope)
+                .values(quantity=InventoryItem.quantity + delta,
+                        updated_at=datetime.now(timezone.utc))
+            )
+        self._db.flush()
+        # The ORM identity map still holds the pre-update quantity; a caller reading the item
+        # back through this session would see the old number. Same trap `upsert_merge` documents.
+        self._db.expire_all()
         return (result.rowcount or 0) > 0
 
     def set_ids_touched_by(self, printing_ids: list[str]) -> list[str]:

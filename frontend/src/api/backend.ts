@@ -245,6 +245,74 @@ export async function fetchSetChecklist(
   return (await res.json()) as { set: SetSummary } & Paged<SetChecklistEntry>;
 }
 
+// --- Inventory writes (bolt 004, plus /adjust from ADR-005) --------------------------
+
+export type InventoryItemView = {
+  id: string;
+  printing_id: string;
+  condition: string;
+  quantity: number;
+  is_graded: boolean;
+  updated_at: string;
+};
+
+export type AddInventoryResult = {
+  item: InventoryItemView;
+  /** True when the add folded into an existing row. Shown as "now 3" so a collector does not
+   *  wonder where their new row went. */
+  merged: boolean;
+};
+
+export async function addInventory(
+  body: { printing_id: string; condition: string; quantity: number },
+  getToken?: TokenGetter,
+): Promise<AddInventoryResult> {
+  const res = await request(
+    "/api/v1/inventory",
+    { method: "POST", body: JSON.stringify(body) },
+    getToken,
+  );
+  return (await res.json()) as AddInventoryResult;
+}
+
+export type AdjustResult = { item_id: string; quantity: number; deleted: boolean };
+
+/**
+ * Change a quantity by a delta — the undo primitive, ADR-005.
+ *
+ * `expected_quantity` means **what the caller believes, from its own record of what it did** —
+ * not what it just read. Fetching the row to fill this field reinstates the read-then-write the
+ * endpoint exists to avoid, with extra steps and a false sense of safety.
+ *
+ * A `409` (`inventory_item_changed`) means somebody else moved the row; its `details` carry
+ * `expected` and `actual` so the refusal can say what it found.
+ */
+export async function adjustInventory(
+  itemId: string,
+  body: { delta: number; expected_quantity: number },
+  getToken?: TokenGetter,
+): Promise<AdjustResult> {
+  const res = await request(
+    `/api/v1/inventory/${encodeURIComponent(itemId)}/adjust`,
+    { method: "POST", body: JSON.stringify(body) },
+    getToken,
+  );
+  return (await res.json()) as AdjustResult;
+}
+
+/** Owner-scoped holdings for one printing — how the session learns a baseline quantity. */
+export async function fetchHoldingsFor(
+  printingId: string,
+  getToken?: TokenGetter,
+): Promise<Paged<InventoryItemView>> {
+  const res = await request(
+    `/api/v1/inventory${qs({ printing_id: printingId, limit: 50 })}`,
+    undefined,
+    getToken,
+  );
+  return (await res.json()) as Paged<InventoryItemView>;
+}
+
 /** Operator-only, so this one *does* carry the token. */
 export async function fetchCatalogHealth(getToken?: TokenGetter): Promise<CatalogHealth> {
   const res = await request("/api/v1/admin/catalog/health", undefined, getToken);

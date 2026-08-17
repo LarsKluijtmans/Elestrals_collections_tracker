@@ -2,11 +2,11 @@
 id: 003-celery-redis-runtime
 unit: 001-harvest-service
 intent: 002-price-intelligence
-status: ready
+status: complete
 priority: must
-created: 2026-08-15T15:00:00Z
+created: '2026-08-15T15:00:00Z'
 assigned_bolt: 010-harvest-service-foundation
-implemented: false
+implemented: true
 ---
 
 # Story: 003-celery-redis-runtime
