@@ -22,6 +22,7 @@ from datetime import date
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..core.db import SessionLocal
+from ..models.base import utc_today
 from ..core.dependencies import make_snapshot_service
 from ..repositories.set_completion_repository import SetCompletionRepository
 from ..repositories.set_repository import SetRepository
@@ -94,7 +95,9 @@ def _snapshot(db, on: str | None) -> int:
         except ValueError:
             print(f"error: --on expects YYYY-MM-DD, got {on!r}", file=sys.stderr)
             return 2
-        if taken_on > date.today():
+        # UTC: the job stamps the snapshot with the UTC day, so a date that is merely
+        # tomorrow *locally* is still a legitimate today.
+        if taken_on > utc_today():
             # A snapshot dated tomorrow would sit at the end of every chart as a phantom point
             # nothing can ever correct.
             print("error: --on cannot be in the future", file=sys.stderr)

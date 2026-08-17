@@ -8,7 +8,7 @@ endpoint cannot be turned into a synchronous full-history rebuild.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,11 +20,12 @@ from app.main import app as real_app
 from app.models.price_daily import PriceDaily
 from app.models.price_observation import PriceObservation
 from app.repositories.harvest_repository import HarvestRepository
+from app.models.base import utc_today
 
 #: Read once, and compared against a `since` the endpoint computes per request. A run that straddles
 #: midnight would therefore disagree by a day. Left as it is rather than frozen: the window is
 #: genuinely relative to "now", and a fixed clock would stop the tests asserting that.
-TODAY = date.today()
+TODAY = utc_today()
 
 
 @pytest.fixture()

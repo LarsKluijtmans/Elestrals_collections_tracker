@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 
 from ..config import settings
+from ..models.base import utc_today
 from ..core.dependencies import (
     current_principal, inventory_repository, portfolio_service, price_repository,
     snapshot_service, valuation_service,
@@ -105,7 +106,8 @@ def price_history(
     """The card price tab. Public, like the phase-1 catalog pages, and cacheable for the same
     reason: it does not vary by caller."""
     days = _RANGES[range_key]
-    since = date.today() - timedelta(days=days) if days else None
+    # UTC, because `price_daily.day` was written in UTC. See `utc_today`.
+    since = utc_today() - timedelta(days=days) if days else None
     rows = prices.history_for_printing(
         printing_id, since=since, sale_type=sale_type, condition=condition
     )
@@ -232,9 +234,9 @@ def portfolio_history(
     the chart **starts where the data starts** rather than drawing a flat line at zero back to the
     beginning, and the counts over that stretch are still real history.
     """
-    from datetime import date as _date, timedelta as _timedelta
+    from datetime import timedelta as _timedelta
 
-    since = _date.today() - _timedelta(days=days - 1)
+    since = utc_today() - _timedelta(days=days - 1)
     rows = snapshots.history(principal.sub, since=since)
     holdings = items.all_for_user(principal.sub)
 

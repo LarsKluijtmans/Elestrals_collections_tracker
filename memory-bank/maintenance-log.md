@@ -266,3 +266,96 @@ comparison that treats it as a pass.** The fix is the same in all three: make "c
 a distinct value from "measured zero", and report it.
 
 `bench.py` now prints `NOT MEASURED: <criterion>` beneath its pass count for exactly this reason.
+
+---
+
+## 2026-08-18 — a review, and the four things it found
+
+A full-project review, prompted by nothing breaking. Three findings were reported and fixed; a
+fourth turned up while verifying the fixes, and was the largest of them.
+
+### 1. The frontend coverage gate had stopped covering the newest rules
+
+`vite.config.ts` scoped coverage to `src/session/**` and `src/components/add/**`, with a comment
+explaining that the scope is "the code that carries rules". Bolt 006 then put rules in
+`src/collection/` — the filter vocabulary, the CSV contract, the type-to-confirm gate on a bulk
+delete — and never extended the list.
+
+So the gate reported **95.39% over 282 statements** while the frontend has ~9,530 lines, and the
+newest rules in the app were outside it. Adding `src/collection/**` dropped the aggregate to
+**77.98%, below the config's own 80% threshold** — the gate would have failed had it measured what
+its comment claimed.
+
+`BulkBar.tsx` was at **0%**, and it holds bolt 006's criterion *"above 20 rows the count has to be
+typed"*. That criterion was recorded as met with no test behind it: `test_bulk_actions.py` proves
+the server applies a bulk delete, but the rule that stops a collector deleting 1,247 cards by
+reflex is frontend-only. 19 tests now cover it, and the scope is extended. `CollectionTable` and
+`FilterRail` are explicitly excluded as presentation, which is a stated decision rather than an
+omission.
+
+**One of those tests was briefly green while exercising the wrong path.** While a MUI dialog is
+open the app root is `aria-hidden`, so `getByRole("button", { name: "Delete" })` resolves to the
+*dialog's* confirm button rather than the toolbar's — the "reopen the dialog" test was confirming a
+delete. Fixed by waiting for the dialog to leave and by naming which button is meant. Worth
+remembering: an ambiguous query does not fail, it picks.
+
+### 2. The client CSV export did not defuse formula injection; the server one did
+
+`backend/app/services/export_service.py` has `neutralise()` — `= + - @` plus tab and CR, five
+tests, bolt 008's criterion. `frontend/src/collection/csv.ts` had RFC 4180 quoting and nothing
+else, so **which export button a collector pressed decided whether their own `storage_location`
+executed when they opened the file.** `storage_location` is user-typed free text and `name` comes
+from the catalog importer, so both a user's own text and ingested third-party text reached a
+spreadsheet through that path.
+
+Now mirrored byte for byte, including prefixing negative numbers — matched deliberately, because
+diverging from the server would recreate the disagreement the fix exists to remove.
+
+### 3. `harvest_obey_robots` was a disclosure with no implementation
+
+Its only readers were `/api/v1/health` and the startup log, both of which *report* it. Nothing in
+the request path consulted it. The comment claimed "turning it back on is one line rather than a
+re-implementation", which was backwards: there was no implementation to turn on, so setting it true
+would have published `"obeys_robots_txt": true` from a harvester that ignores robots.txt entirely —
+at the exact URL somebody checks to find out whether a bot is behaving.
+
+A `field_validator` now refuses to start on `true`, and its message points at `PoliteClient` rather
+than at the line that raised. The flag stays `false` and honest. Six tests, including a guard that
+fails if anything in `app/harvest/` ever reads the flag — the signal to delete the validator rather
+than weaken the test.
+
+### 4. The write path was UTC and the read path was local
+
+Found by `test_snapshot_writes_a_row` failing at 00:47 local: the job stamped `2026-08-17` and the
+test asserted `date.today()`, which was already `2026-08-18`.
+
+Every day-stamped row here is written in UTC — `CollectionSnapshot.taken_on`, `price_daily.day`,
+the FX day, `risk_accepted_on`. The reads were `date.today()`, the *local* day. They agree for
+twenty-two hours and disagree for the two between local midnight and UTC midnight, during which:
+
+* a "last 30 days" window starts a day late, and a leading chart day comes back empty
+* `--snapshot --date` accepts a day still in the future in UTC
+* the FX task asks for a rate that has not been published yet
+
+Seven production sites across both services, plus four tests. All now go through `utc_today()`,
+added beside the existing `utc_naive()` in each service's `models/base.py`.
+
+This is the **fourth** face of one bug in this repo: bolt 014's naive `computed_at`, bolt 009's
+outbox drain matching nothing, `utc_naive` itself, and now the date half. `coding-standards.md`
+rule 4 has been extended to cover `DATE` columns explicitly.
+
+### The shape all four share
+
+Nothing here announced itself. A coverage gate reported a healthy number over 3% of the code, a
+security control existed on one of two identical paths, a config flag documented conduct it did not
+enforce, and a clock mismatch was invisible for twenty-two hours a day. **None of these were
+failures. They were successes measured over the wrong thing** — which is the same lesson recorded
+on 2026-08-17 about CRLF-blind validators and a benchmark passing `0 - 0 < 100`, and it has now
+been learned often enough to be worth stating as a habit rather than an anecdote: when a check
+passes, ask what it measured before believing it.
+
+### Verified
+
+backend 584, harvest 194, frontend 205, `tsc` clean, `ruff check --select F,E7` clean on both
+services (it was already failing on three pre-existing unused imports; those are fixed too), both
+AI-DLC validators 0 over 24 bolts, frontend coverage 93.47% over 429 statements.

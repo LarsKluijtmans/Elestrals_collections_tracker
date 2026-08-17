@@ -16,9 +16,10 @@ from app.models.inventory_item import InventoryItem
 from app.models.price_daily import PriceDaily
 from app.repositories.price_repository import PriceRepository
 from app.services.valuation_service import ValuationService
+from app.models.base import utc_today
 from test_inventory import ALICE, seed_catalog
 
-TODAY = date.today()
+TODAY = utc_today()
 
 
 @pytest.fixture()

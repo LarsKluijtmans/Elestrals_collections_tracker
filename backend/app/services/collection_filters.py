@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass, fields
 from typing import Any
 
-from sqlalchemy import ColumnElement, and_, or_
+from sqlalchemy import ColumnElement, and_
 
 from ..models.card import Card
 from ..models.inventory_item import CONDITIONS, InventoryItem

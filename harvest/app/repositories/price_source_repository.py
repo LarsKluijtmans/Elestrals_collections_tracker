@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..harvest.quarantine import QuarantinePolicy
 from ..models.price_source import PriceSource
+from ..models.base import utc_today
 
 
 class RiskAcceptanceRequired(ValueError):
@@ -81,7 +82,9 @@ class PriceSourceRepository:
             row.tos_review_note = note.strip()
         if accepted_by is not None:
             row.risk_accepted_by = accepted_by.strip()
-            row.risk_accepted_on = date.today()
+            # UTC: the acceptance is stamped with the same clock as everything else, so an
+            # enable just after local midnight does not record yesterday's date.
+            row.risk_accepted_on = utc_today()
 
         if not (row.tos_review_note or "").strip():
             raise RiskAcceptanceRequired(

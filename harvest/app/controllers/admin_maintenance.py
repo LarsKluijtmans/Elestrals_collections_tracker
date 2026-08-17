@@ -23,7 +23,7 @@ the same as running it once. So there is no confirmation step here — there is 
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -36,6 +36,7 @@ from ..repositories.harvest_repository import HarvestRepository
 from ..schemas import RollupRun, SweepResult
 from ..services.logging_service import log_event
 from ..services.rollup_service import RollupService
+from ..models.base import utc_today
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -63,7 +64,8 @@ def recompute_rollup(
     corrected by this — which is why the fix for a bad number is always to run it again rather
     than to patch a row.
     """
-    since = date.today() - timedelta(days=since_days - 1)
+    # UTC, matching the day `price_daily` rows are stamped with. See `utc_today`.
+    since = utc_today() - timedelta(days=since_days - 1)
     result = rollups.rebuild(since=since)
 
     log_event(

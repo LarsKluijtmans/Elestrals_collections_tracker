@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -31,6 +31,25 @@ def utc_naive(moment: datetime | None = None) -> datetime:
     """
     moment = moment or datetime.now(timezone.utc)
     return moment.astimezone(timezone.utc).replace(tzinfo=None) if moment.tzinfo else moment
+
+
+def utc_today() -> date:
+    """Today **in UTC** — for any `date` column, and the fourth face of the same bug.
+
+    Every day-stamped row in this project is written in UTC: `CollectionSnapshot.taken_on` is
+    `datetime.now(timezone.utc).date()`, and so are `price_daily.day` and the FX day. The *reads*
+    were `date.today()`, which is the local day.
+
+    Those agree for twenty-two hours a day and disagree for the other two. Running in UTC+2, every
+    night between local midnight and UTC midnight, `date.today()` is one day ahead of everything
+    already in the table — so a "last 30 days" window starts a day late, a leading day of a chart
+    comes back empty, and `--snapshot --date` accepts a day that is still in the future in UTC.
+    Found on 2026-08-18 by `test_snapshot_writes_a_row`, which failed at 00:47 local and would
+    have passed again by 02:00 — the kind of failure that gets re-run and shrugged at.
+
+    Same lesson as `utc_naive` above, one type down: **pick one clock and use it on both sides.**
+    """
+    return datetime.now(timezone.utc).date()
 
 
 class UuidPrimaryKeyMixin:

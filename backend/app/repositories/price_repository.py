@@ -17,6 +17,7 @@ from datetime import date, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..models.base import utc_today
 from ..models.price_daily import PriceDaily
 
 
@@ -159,7 +160,7 @@ class PriceRepository:
         without it the list is dominated by printings with one sale each, which is exactly the
         data least worth ranking.
         """
-        today = date.today()
+        today = utc_today()
         then = today - timedelta(days=window_days)
 
         recent = self._window(then, today, min_observations, currency)

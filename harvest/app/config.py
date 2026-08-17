@@ -14,6 +14,7 @@ one nobody agreed to.
 """
 from __future__ import annotations
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -77,8 +78,15 @@ class Settings(BaseSettings):
         "www.ebay.com,api.ebay.com,api.sandbox.ebay.com,www.tcgplayer.com"
     )
     #: robots.txt is NOT consulted. ADR-004, recorded in NFR §Conduct. This flag exists so the
-    #: decision is visible in configuration rather than only in a document, and so that
-    #: turning it back on is one line rather than a re-implementation.
+    #: decision is visible in configuration rather than only in a document.
+    #:
+    #: **It is a disclosure, not a switch.** Its only readers are `/api/v1/health` and the startup
+    #: log, both of which *report* it; nothing in the request path consults it. The comment here
+    #: used to claim that turning it back on was "one line rather than a re-implementation", which
+    #: was exactly backwards — there is no implementation to turn on, so setting it true would
+    #: publish `"obeys_robots_txt": true` to anyone reading our health endpoint while the
+    #: harvester carried on ignoring robots.txt. A false claim of good conduct is worse than the
+    #: honest `false`, so `validate_robots_flag` below refuses to start rather than let that ship.
     harvest_obey_robots: bool = False
 
     harvest_request_timeout_seconds: float = 20.0
@@ -129,6 +137,32 @@ class Settings(BaseSettings):
     ebay_web_host: str = "www.ebay.com"
     #: `host:CURRENCY` pairs — one source, one terms review, one kill switch per shop.
     harvest_shopify_shops: str = ""
+
+    @field_validator("harvest_obey_robots")
+    @classmethod
+    def validate_robots_flag(cls, value: bool) -> bool:
+        """Refuse to start rather than publish a claim we do not honour.
+
+        `harvest_obey_robots` is read only by `/api/v1/health` and the startup log. Setting it true
+        changes what we *tell people* about our conduct and changes nothing about our conduct — and
+        the health endpoint is exactly where somebody checks whether a bot is behaving.
+
+        Failing loudly here is the honest option. The alternative — accept the flag and keep
+        ignoring robots.txt — is the kind of quiet mismatch between claim and behaviour that this
+        codebase has repeatedly caught in its own checks and should not ship in its own disclosures.
+
+        To genuinely obey robots.txt: fetch and cache `/robots.txt` per host in `PoliteClient`,
+        test each URL against it before the request, and raise `SourceRefused` on a disallow.
+        Then delete this validator. That is a change to ADR-004, not a configuration tweak.
+        """
+        if value:
+            raise ValueError(
+                "HARVEST_OBEY_ROBOTS=true is not implemented. Nothing in the request path "
+                "consults robots.txt, so enabling this flag would only make /api/v1/health "
+                "report compliance the harvester does not have. Implement the check in "
+                "PoliteClient and remove this validator, or leave the flag false and honest."
+            )
+        return value
 
     @property
     def admin_subs_list(self) -> list[str]:

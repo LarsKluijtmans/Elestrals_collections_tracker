@@ -30,6 +30,7 @@ from ..core.dependencies import (
     saved_view_service,
     snapshot_service,
 )
+from ..models.base import utc_today
 from ..models.inventory_item import InventoryItem
 from ..repositories.inventory_repository import InventoryRepository
 from ..schemas import (
@@ -434,9 +435,10 @@ def snapshot_history(
     once its nightly valuation has filled in `total_value_cents`. Rows before that carry `null`
     value and `none` confidence, which the chart draws as a gap rather than as zero.
     """
-    from datetime import date, timedelta
+    from datetime import timedelta
 
-    since = date.today() - timedelta(days=days - 1)
+    # UTC, because `taken_on` was written in UTC. See `utc_today`.
+    since = utc_today() - timedelta(days=days - 1)
     rows = svc.history(principal.sub, since=since)
     return SnapshotHistoryResponse(items=[
         SnapshotModel(

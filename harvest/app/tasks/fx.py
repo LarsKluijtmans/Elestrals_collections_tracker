@@ -19,6 +19,7 @@ from ..core.db import SessionLocal
 from ..services.fx_service import FxService
 from ..services.logging_service import log_event
 from .celery_app import celery_app
+from ..models.base import utc_today
 
 #: The currencies observations actually arrive in. Kept short deliberately: every pair is a row a
 #: day forever, and a currency nobody sells in is a row nobody reads.
@@ -36,7 +37,9 @@ def fetch_rates(day: str | None = None) -> dict:
     Runs on the beat schedule, and is safe to run by hand or twice: `(day, base, quote)` is the
     primary key, so a re-fetch corrects a stored rate rather than adding a second opinion.
     """
-    target = date.fromisoformat(day) if day else date.today() - timedelta(days=1)
+    # UTC: asking for "yesterday" in local time can name a UTC day whose rate is not
+    # published yet, which reads as a missing rate rather than as a clock mismatch.
+    target = date.fromisoformat(day) if day else utc_today() - timedelta(days=1)
     base = settings.harvest_base_currency
     quotes = [q for q in QUOTES if q != base]
 

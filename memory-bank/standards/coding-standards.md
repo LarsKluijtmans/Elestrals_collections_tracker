@@ -64,7 +64,14 @@ These exist because of decisions taken at inception. They are not stylistic.
 3. **Money is `*_cents BIGINT` plus an explicit `currency CHAR(3)`.** Never a float, never an
    implied currency. A bare number is not money and must be rejected at the boundary.
 
-4. **All timestamps are `DATETIME(6)` UTC.** Naive local datetimes are a bug.
+4. **All timestamps are `DATETIME(6)` UTC.** Naive local datetimes are a bug. **`DATE` columns and
+   the windows that query them are UTC too** — `utc_today()`, never `date.today()`. Both services
+   have the helper; neither should call `datetime.date.today()` anywhere. The read path drifted
+   local while the write path stayed UTC, and the two agree for twenty-two hours a day: on 2026-08-18
+   a snapshot test failed at 00:47 local and would have passed again by 02:00, which is exactly the
+   failure that gets re-run and shrugged at. Seven production sites were affected, including the
+   FX task asking for a rate that was not published yet. Same rule as the aware/naive trap above,
+   one type down: **pick one clock and use it on both sides of every comparison.**
 
 5. **`log_event()` is the only way anything writes a log.** Direct writes to `app_logs`, and direct
    `logs.write` calls, are a review failure — the two-destination routing rule lives in exactly one

@@ -17,9 +17,10 @@ from app.main import app
 from app.models.inventory_item import InventoryItem
 from app.models.price_daily import PriceDaily
 from app.security import Principal, verify_token
+from app.models.base import utc_today
 from test_inventory import ALICE, seed_catalog
 
-TODAY = date.today()
+TODAY = utc_today()
 
 
 def principal(sub: str) -> Principal:

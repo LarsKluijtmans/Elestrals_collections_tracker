@@ -27,16 +27,46 @@ export const COLUMNS = [
 
 export type CsvRow = Partial<Record<(typeof COLUMNS)[number], string | number | boolean | null>>;
 
+/** The four characters a spreadsheet treats as the start of a formula. */
+const FORMULA_PREFIXES = ["=", "+", "-", "@"];
+
+/**
+ * Defuse anything a spreadsheet would execute.
+ *
+ * The mirror of `neutralise()` in `backend/app/services/export_service.py`, and it exists here for
+ * the same reason it exists there: the attack is on the **user**, not on us. A `storage_location`
+ * somebody typed as `=IMPORTXML("http://…","//x")` is inert in our database and becomes a live
+ * formula the moment they open the export in Excel — where it can read the rest of their sheet.
+ *
+ * This file had RFC 4180 quoting and nothing else, so the two export paths disagreed: the server
+ * export was defused and the client export was not, for the same data. `storage_location` is
+ * user-typed free text and `name` comes from the catalog importer, so both a user's own text and
+ * ingested third-party text reach a spreadsheet through here.
+ *
+ * `'` is the prefix because Excel, Sheets and LibreOffice all strip it on display — the user sees
+ * what they wrote and the cell is inert. Tab and CR are included because at least one of the three
+ * treats them as formula-leading whitespace.
+ */
+export function neutralise(text: string): string {
+  const first = text.slice(0, 1);
+  return FORMULA_PREFIXES.includes(first) || first === "\t" || first === "\r" ? `'${text}` : text;
+}
+
 /**
  * Escape one field.
  *
  * A card called `Atlas, Reborn` breaks a naive join on commas — and card names contain commas,
  * quotes and, in at least one set, a newline in the flavour line. RFC 4180: wrap in quotes, double
  * any quote inside.
+ *
+ * Defusing happens **before** quoting, so a value that is both dangerous and comma-bearing gets the
+ * `'` inside the quotes where the spreadsheet will honour it, rather than outside where it would
+ * corrupt the field.
  */
 export function escapeField(value: string | number | boolean | null | undefined): string {
   if (value === null || value === undefined) return "";
-  const text = typeof value === "boolean" ? (value ? "true" : "false") : String(value);
+  const raw = typeof value === "boolean" ? (value ? "true" : "false") : String(value);
+  const text = neutralise(raw);
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

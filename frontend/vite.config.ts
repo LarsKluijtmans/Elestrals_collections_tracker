@@ -23,8 +23,24 @@ export default defineConfig({
       // Scoped to the code that carries rules, not the whole app. A coverage number averaged
       // over page shells and generated locale files says nothing about whether the rules a
       // collection depends on are exercised — which is the question the threshold is asking.
-      include: ["src/session/**", "src/components/add/**"],
-      exclude: ["src/**/*.test.{ts,tsx}"],
+      //
+      // `src/collection/**` was missing until 2026-08-18, and its absence — not the scoping — is
+      // what this comment should warn about. Bolt 006 put real rules there: the filter
+      // vocabulary, the CSV contract, and the type-to-confirm gate on a bulk delete. Because the
+      // list was never extended, the threshold silently stopped covering the newest rules in the
+      // app while still printing "All files 95%" over 282 statements. A scope that is not
+      // maintained becomes a scope that flatters.
+      //
+      // **When a directory starts carrying rules, add it here in the same commit.**
+      include: ["src/session/**", "src/components/add/**", "src/collection/**"],
+      // The three table components are presentation over `filters.ts` and the API types: no
+      // branching a wrong answer could hide in, and covering them means asserting MUI renders a
+      // table. `BulkBar` is deliberately *not* excluded — it holds the delete gate.
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/collection/CollectionTable.tsx",
+        "src/collection/FilterRail.tsx",
+      ],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
     },
   },

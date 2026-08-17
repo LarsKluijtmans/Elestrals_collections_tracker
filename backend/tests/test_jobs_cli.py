@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.jobs.cli import main
 from app.models.collection_snapshot import CollectionSnapshot
+from app.models.base import utc_today
 from test_inventory import ALICE, build_service, seed_catalog
 
 
@@ -51,7 +52,9 @@ def test_snapshot_writes_a_row(collection, db, capsys):
 
     (row,) = rows(db)
     assert row.item_count == 2
-    assert row.taken_on == date.today()
+    # UTC, not `date.today()`. The job stamps the UTC day; comparing against the local day
+    # made this test fail between local midnight and UTC midnight and pass again by 02:00.
+    assert row.taken_on == utc_today()
     assert "1 written" in capsys.readouterr().out
 
 
@@ -81,7 +84,7 @@ def test_a_malformed_date_is_refused(collection):
 def test_a_future_date_is_refused(collection):
     """A snapshot dated tomorrow sits at the end of every chart as a phantom point that nothing
     can ever correct."""
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    tomorrow = (utc_today() + timedelta(days=1)).isoformat()
     assert main(["--snapshot", "--on", tomorrow]) == 2
 
 
