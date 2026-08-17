@@ -23,7 +23,7 @@ celery_app = Celery(
     "harvest",
     broker=settings.harvest_redis_url,
     backend=settings.harvest_redis_url,
-    include=["app.tasks.scans", "app.tasks.maintenance"],
+    include=["app.tasks.scans", "app.tasks.maintenance", "app.tasks.fx"],
 )
 
 celery_app.conf.update(
@@ -38,6 +38,7 @@ celery_app.conf.update(
         "harvest.rollup": {"queue": "maintenance"},
         "harvest.sweep": {"queue": "maintenance"},
         "harvest.probe": {"queue": "maintenance"},
+        "harvest.fx": {"queue": "maintenance"},
     },
     timezone="UTC",
     enable_utc=True,
@@ -67,5 +68,12 @@ celery_app.conf.beat_schedule = {
     "probe-quarantined": {
         "task": "harvest.probe",
         "schedule": schedule(run_every=900),
+    },
+    # Story 018: **one call a day.** Conversion is a join against `fx_rates`, never a request-path
+    # call to a provider — so this is the only thing in the system that talks to one, and a
+    # provider outage degrades tomorrow's precision rather than today's availability.
+    "fx-rates": {
+        "task": "harvest.fx",
+        "schedule": schedule(run_every=86_400),
     },
 }

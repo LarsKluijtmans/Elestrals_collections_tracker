@@ -85,6 +85,55 @@ async function get(path: string, getToken?: TokenGetter): Promise<Response> {
   return res;
 }
 
+export type HistoryPoint = {
+  day: string;
+  item_count: number;
+  distinct_printings: number;
+  /** `null` means not valued. The chart **breaks** here — it does not draw a zero or interpolate. */
+  total_value_cents: number | null;
+  currency: string;
+  confidence: string;
+};
+
+export type Performer = {
+  printing_id: string;
+  name: string;
+  set_code: string;
+  contribution_cents: number;
+  unit_cents: number;
+  quantity: number;
+};
+
+export type PortfolioHistory = {
+  points: HistoryPoint[];
+  prices_start_on: string | null;
+  profit_and_loss: {
+    cost_cents: number;
+    market_cents: number;
+    gain_cents: number;
+    covered_items: number;
+    uncovered_items: number;
+    coverage: number;
+  } | null;
+  best: Performer[];
+  worst: Performer[];
+};
+
+export type PriceAlert = {
+  id: string;
+  printing_id: string;
+  card_id: string;
+  name: string;
+  set_code: string;
+  direction: string;
+  threshold_cents: number;
+  currency: string;
+  is_active: boolean;
+  last_fired_at: string | null;
+  cooldown_until: string | null;
+  created_at: string;
+};
+
 export const pricesApi = {
   /** Public — the price tab does not vary on the caller and is cacheable. */
   async history(
@@ -105,6 +154,20 @@ export const pricesApi = {
   },
 
   /** Signed in, and scoped to the caller by the token — never by a parameter. */
+  async portfolioHistory(
+    getToken: TokenGetter, days = 365, currency = "EUR",
+  ): Promise<PortfolioHistory> {
+    const res = await get(
+      `/api/v1/portfolio/history?days=${days}&currency=${currency}`, getToken,
+    );
+    return res.json();
+  },
+
+  async alerts(getToken: TokenGetter): Promise<PriceAlert[]> {
+    const res = await get("/api/v1/alerts", getToken);
+    return res.json();
+  },
+
   async portfolio(getToken: TokenGetter, currency = "EUR"): Promise<Portfolio> {
     const res = await get(`/api/v1/portfolio?currency=${currency}`, getToken);
     return res.json();

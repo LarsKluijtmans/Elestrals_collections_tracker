@@ -88,14 +88,28 @@ class ValuationService:
         Runs in this service rather than in the harvester because it joins the user's inventory,
         which `harvest-api` cannot read and should not be able to.
         """
-        result = Valuation(currency=currency)
         if not items:
-            return result
+            return Valuation(currency=currency)
 
         printing_ids = sorted({item.printing_id for item in items})
         rollups = self._prices.latest_for_printings(
             printing_ids, sale_type="sold", currency=currency
         )
+        return self.value_with(items, rollups, currency=currency)
+
+    def value_with(
+        self, items: list[InventoryItem], rollups: dict, *, currency: str = "EUR",
+    ) -> Valuation:
+        """The same arithmetic over a rollup map the caller already has.
+
+        Split out for story 022's back-fill, which values a past snapshot with **that day's**
+        rollups rather than the latest — same rules, different prices. Duplicating the loop would
+        have been how the two came to disagree about which conditions fall back to which, and a
+        history that values holdings differently from the live portfolio is worse than no history.
+        """
+        result = Valuation(currency=currency)
+        if not items:
+            return result
         result.priced_as_of = self._prices.last_computed_at()
 
         confidences: list[str] = []

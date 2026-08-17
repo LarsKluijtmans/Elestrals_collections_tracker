@@ -34,11 +34,12 @@ export const ROUTES: RouteDef[] = [
   { path: "/u/:handle", label: "Public collection", auth: "public", phase: 1, inNav: false },
   { path: "/admin/catalog", label: "Catalog", auth: "operator", phase: 1, inNav: false },
 
-  // Phase 2 — mounted, except alerts (blocked on the phase-1 outbox, intent 001 bolt 009).
+  // Phase 2 — all mounted. Alerts were blocked on the phase-1 outbox (intent 001 bolt 009)
+  // until it shipped on 2026-08-17; they now deliver through it like every other notification.
   { path: "/prices", label: "Prices", auth: "public", phase: 2, inNav: true },
   { path: "/portfolio", label: "Portfolio", auth: "user", phase: 2, inNav: true },
   { path: "/admin/harvest", label: "Harvest", auth: "admin", phase: 2, inNav: false },
-  { path: "/alerts", label: "Alerts", auth: "user", phase: 2, inNav: false },
+  { path: "/alerts", label: "Alerts", auth: "user", phase: 2, inNav: true },
 
   // Phase 3 — not mounted yet.
   { path: "/market", label: "Market", auth: "public", phase: 3, inNav: false },

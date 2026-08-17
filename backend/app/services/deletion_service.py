@@ -33,6 +33,7 @@ from ..models.deletion_request import GRACE_DAYS, DeletionAudit, DeletionRequest
 from ..models.import_job import ImportJob
 from ..models.inventory_item import InventoryItem
 from ..models.notification import NotificationOutbox, NotificationPreference
+from ..models.price_alert import PriceAlert
 from ..models.saved_view import SavedView
 from ..models.sealed_inventory_item import SealedInventoryItem
 from ..models.set_completion import SetCompletion
@@ -53,6 +54,7 @@ TABLES = (
     ImportJob,          # cascades to import_rows
     NotificationPreference,
     NotificationOutbox,
+    PriceAlert,
     UserProfile,        # last: it is the row everything else hangs off conceptually
 )
 

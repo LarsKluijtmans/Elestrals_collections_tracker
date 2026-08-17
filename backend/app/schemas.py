@@ -737,3 +737,100 @@ class DeletionSummaryResponse(BaseModel):
     request_id: str
     inventory_rows: int
     other_rows: int
+
+
+# --- portfolio history, P/L and slices (stories 021, 022, 033) ------------------------
+
+
+class HistoryPointModel(BaseModel):
+    day: date
+    item_count: int
+    distinct_printings: int
+    #: `null` means "not valued". The chart **breaks** here rather than drawing a zero or
+    #: interpolating — story 022's third criterion.
+    total_value_cents: int | None
+    currency: str
+    confidence: str
+
+
+class PerformerModel(BaseModel):
+    printing_id: str
+    name: str
+    set_code: str
+    #: Contribution to the total, not unit price — a common held forty times can outrank a single
+    #: expensive holo, which is usually the interesting answer.
+    contribution_cents: int
+    unit_cents: int
+    quantity: int
+
+
+class ProfitAndLossModel(BaseModel):
+    cost_cents: int
+    market_cents: int
+    gain_cents: int
+    #: Holdings with a cost basis, and only those.
+    covered_items: int
+    #: Excluded and counted, never assumed to have cost zero — that would report the entire
+    #: market value as profit, which is wrong and flattering at once.
+    uncovered_items: int
+    coverage: float
+
+
+class PortfolioHistoryResponse(BaseModel):
+    points: list[HistoryPointModel]
+    #: The first day any price data exists. Before it, values are null by necessity and the
+    #: counts are still true history worth showing.
+    prices_start_on: date | None
+    profit_and_loss: ProfitAndLossModel | None
+    best: list[PerformerModel]
+    worst: list[PerformerModel]
+
+
+class SliceValuationResponse(BaseModel):
+    #: Echoed so the figure and the filter that produced it travel together.
+    filters: dict[str, Any]
+    matching_items: int
+    total_cents: int
+    currency: str
+    valued_items: int
+    unvalued_items: int
+    coverage: float
+    confidence: str
+
+
+# --- price alerts (story 034) ---------------------------------------------------------
+
+
+class PriceAlertModel(BaseModel):
+    id: str
+    printing_id: str
+    card_id: str
+    name: str
+    set_code: str
+    #: "above" or "below". A threshold without a side fires on both, which is not what anyone
+    #: means when they set one.
+    direction: str
+    threshold_cents: int
+    currency: str
+    is_active: bool
+    last_fired_at: datetime | None
+    #: Until this passes, a crossing does not fire again. One notification about a wobble is
+    #: information; six is a reason to mute the channel.
+    cooldown_until: datetime | None
+    created_at: datetime
+
+
+class CreateAlertRequest(BaseModel):
+    printing_id: str
+    direction: Literal["above", "below"] = "below"
+    threshold_cents: int = Field(gt=0)
+    currency: str = Field(default="EUR", min_length=3, max_length=3)
+
+
+class AlertEvaluationResponse(BaseModel):
+    considered: int
+    fired: int
+    #: Not fired because the data was too thin to make a claim on. Counted rather than swallowed,
+    #: so "my alert never fires" has an answer other than "it is broken".
+    skipped_low_confidence: int
+    in_cooldown: int

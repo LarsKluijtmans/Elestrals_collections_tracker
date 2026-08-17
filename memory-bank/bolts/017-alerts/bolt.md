@@ -3,14 +3,20 @@ id: 017-alerts
 unit: 007-alerts
 intent: 002-price-intelligence
 type: simple-construction-bolt
-status: blocked
+status: complete
 stories:
   - 034-price-alerts
 created: 2026-08-15T15:25:00Z
 started: null
 completed: null
-current_stage: null
-stages_completed: []
+current_stage: done
+stages_completed:
+  - name: implement
+    completed: 2026-08-17T22:40:00Z
+    artifact: 0008_price_alerts.py, alert_service.py, /alerts
+  - name: test
+    completed: 2026-08-17T22:45:00Z
+    artifact: test-report.md
 
 requires_bolts:
   - 014-rollups-and-valuation
@@ -105,3 +111,39 @@ alert that silently did not fire - the failure this story's acceptance criteria 
 prevent.
 
 **Unblocks when:** intent 001 bolt 009 ships.
+
+
+## Construction result - 2026-08-17
+
+**Status: complete.** Unblocked and built the same day.
+
+This bolt was `blocked` for a fortnight on one sentence in its own acceptance criteria: *"delivery
+goes through the phase-1 outbox, so a notification-api outage delays rather than loses."* There was
+no outbox. Bolt 009 shipped one this afternoon, and story 034 needed no compromise at all — an alert
+is now an ordinary `enqueue` on the same queue every other notification uses.
+
+Worth noting what did **not** happen: the bolt notes floated shipping alerts with direct delivery
+and replacing it when the outbox landed. That would have meant an alert lost to an outage — which is
+the failure the criterion names — and a second delivery path to remove later. Waiting cost two weeks
+and produced a feature with no temporary code in it.
+
+**Three refusals carry the story.**
+
+*Nothing fires on `low` confidence.* Under ADR-004 more of the data is thin, single-source or
+asking-price-derived, and firing on it trains users to ignore alerts — at which point the ones that
+matter get ignored too. Skipped alerts are **counted**, so "my alert never fires" has an answer
+other than "it is broken".
+
+*Nothing fires twice inside a seven-day cooldown.* A price wobbling over a threshold would otherwise
+notify on every evaluation.
+
+*Evaluation runs after the rollup, never on its own schedule.* An alert evaluated against a
+half-written day fires on a partial median, and an alert is a claim that something happened.
+
+**The bug worth recording.** The first version created an alert and delivered nothing. Story 032's
+defaults leave `price_alert` on `none` until asked for, and `enqueue` respects that at queue time —
+so the alert fired, the notification was dropped as muted, and nobody heard anything. Two correct
+rules producing a silent feature, which is worse than an absent one.
+
+Setting an alert *is* the opt-in, so `create` now raises the preference to `inapp` if it is still
+`none` — the least intrusive channel that actually works, with the settings page one click away.

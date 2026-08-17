@@ -46,19 +46,38 @@ def build_parser() -> argparse.ArgumentParser:
         "--rebuild-completion", metavar="USER_SUB",
         help="regenerate one user's set_completion projection from inventory",
     )
+    parser.add_argument(
+        "--value-snapshots", action="store_true",
+        help="write collection values onto snapshot rows, each using ITS OWN day's prices "
+             "(story 022). Safe to re-run; leaves a day null when nothing priced it",
+    )
+    parser.add_argument(
+        "--since", metavar="YYYY-MM-DD",
+        help="with --value-snapshots: only value days from this date. Omit for every snapshot",
+    )
+    parser.add_argument(
+        "--drain-outbox", action="store_true",
+        help="attempt delivery for every pending notification that is due",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if not args.snapshot and not args.rebuild_completion:
-        print("error: nothing to do — pass --snapshot or --rebuild-completion", file=sys.stderr)
+    if not (args.snapshot or args.rebuild_completion or args.value_snapshots
+            or args.drain_outbox):
+        print("error: nothing to do — pass --snapshot, --value-snapshots, --drain-outbox "
+              "or --rebuild-completion", file=sys.stderr)
         return 2
 
     db = SessionLocal()
     try:
         if args.snapshot:
             return _snapshot(db, args.on)
+        if args.value_snapshots:
+            return _value_snapshots(db, args.since)
+        if args.drain_outbox:
+            return _drain_outbox(db)
         return _rebuild_completion(db, args.rebuild_completion)
     except SQLAlchemyError as exc:
         print(f"error: database unavailable: {type(exc).__name__}: {exc}", file=sys.stderr)
@@ -91,6 +110,46 @@ def _snapshot(db, on: str | None) -> int:
         # job for it would fill an inbox with alerts about nothing.
         print("  (no user holds anything yet)")
     return 0
+
+
+def _value_snapshots(db, since: str | None) -> int:
+    """Story 022. Runs *after* `--snapshot` on the same schedule: today's row must exist before
+    it can be valued."""
+    from ..repositories.inventory_repository import InventoryRepository
+    from ..repositories.price_repository import PriceRepository
+    from ..services.portfolio_service import PortfolioService
+
+    start = None
+    if since:
+        try:
+            start = date.fromisoformat(since)
+        except ValueError:
+            print(f"error: --since expects YYYY-MM-DD, got {since!r}", file=sys.stderr)
+            return 2
+
+    portfolio = PortfolioService(InventoryRepository(db), PriceRepository(db))
+    valued, left_null = make_snapshot_service(db).value_days(
+        portfolio, InventoryRepository(db), since=start,
+    )
+    print(f"valued {valued} snapshot day(s); {left_null} left null (no prices for that day)")
+    if left_null and not valued:
+        # Worth saying plainly rather than reporting a bare zero: the harvester not having reached
+        # back that far is a different problem from the valuation being broken.
+        print("  (no rollups cover these days yet — the chart starts where the prices start)")
+    return 0
+
+
+def _drain_outbox(db) -> int:
+    from ..services.notification_service import NotificationService
+
+    result = NotificationService(db).drain()
+    print(
+        f"outbox: {result.attempted} attempted, {result.sent} sent, "
+        f"{result.retried} retried, {result.dead_lettered} dead-lettered"
+    )
+    # A dead letter is a notification nobody will ever receive. Non-zero exit so a cron wrapper
+    # can surface it rather than it only existing in a log somebody has to think to read.
+    return 1 if result.dead_lettered else 0
 
 
 def _rebuild_completion(db, user_sub: str) -> int:

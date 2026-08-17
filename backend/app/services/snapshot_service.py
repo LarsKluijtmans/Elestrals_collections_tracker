@@ -86,6 +86,54 @@ class SnapshotService:
             taken_on=day, users=len(totals), written=written, updated=updated
         )
 
+    def value_days(
+        self,
+        portfolio,
+        items,
+        *,
+        since: date | None = None,
+        currency: str = "EUR",
+    ) -> tuple[int, int]:
+        """Story 022's back-fill: write a value onto every snapshot, using **its own day's** prices.
+
+        Returns `(valued, left_null)`.
+
+        Two properties this has to have, and they are the story's own criteria:
+
+        * **Re-runnable, producing the same values for the same days.** It reads `price_daily`,
+          which is itself recomputed rather than accumulated, so running this twice is running the
+          same arithmetic over the same inputs.
+        * **Never today's prices for a past day.** Valuing history with current rollups would make
+          the whole chart move every night — the same failure as using today's FX rate for a
+          year-old sale.
+
+        A user's *current* holdings are the best available proxy for what they held on a past day,
+        and that is a real limitation rather than a bug: phase 1 recorded counts, not composition.
+        So back-filled values are honest about their prices and approximate about their contents,
+        and days from here on are exact because the snapshot and the valuation happen together.
+        """
+        rows = self._db.scalars(
+            select(CollectionSnapshot).where(
+                CollectionSnapshot.taken_on >= since
+            ) if since else select(CollectionSnapshot)
+        )
+
+        valued = left_null = 0
+        holdings_by_user: dict[str, list] = {}
+        for row in rows:
+            if row.user_sub not in holdings_by_user:
+                holdings_by_user[row.user_sub] = items.all_for_user(row.user_sub)
+            portfolio.value_snapshot(
+                row, holdings_by_user[row.user_sub], currency=currency,
+            )
+            if row.total_value_cents is None:
+                left_null += 1
+            else:
+                valued += 1
+
+        self._db.commit()
+        return valued, left_null
+
     def history(
         self, user_sub: str, *, since: date | None = None, limit: int = 400
     ) -> list[CollectionSnapshot]:

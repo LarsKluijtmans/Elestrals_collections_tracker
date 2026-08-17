@@ -30,9 +30,11 @@ from ..services.coverage_service import CoverageService
 from ..services.dashboard_service import DashboardService
 from ..services.inventory_service import InventoryService
 from ..services.import_runner import ImportRunner
+from ..services.alert_service import AlertService
 from ..services.deletion_service import DeletionService
 from ..services.import_service import ImportService
 from ..services.notification_service import NotificationService
+from ..services.portfolio_service import PortfolioService
 from ..services.public_profile_service import PublicProfileService
 from ..services.profile_service import ProfileService
 from ..services.saved_view_service import SavedViewService
@@ -278,3 +280,18 @@ def public_profile_service(db: Session = Depends(get_db)) -> PublicProfileServic
 
 def deletion_service(db: Session = Depends(get_db)) -> DeletionService:
     return DeletionService(db)
+
+
+def portfolio_service(
+    items: InventoryRepository = Depends(inventory_repository),
+    prices: PriceRepository = Depends(price_repository),
+) -> PortfolioService:
+    return PortfolioService(items, prices)
+
+
+def alert_service(
+    db: Session = Depends(get_db),
+    prices: PriceRepository = Depends(price_repository),
+    notifications: NotificationService = Depends(notification_service),
+) -> AlertService:
+    return AlertService(db, prices, notifications)

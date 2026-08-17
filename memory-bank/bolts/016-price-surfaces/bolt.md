@@ -3,7 +3,7 @@ id: 016-price-surfaces
 unit: 006-price-surfaces
 intent: 002-price-intelligence
 type: ddd-construction-bolt
-status: partial
+status: complete
 stories:
   - 030-card-price-tab
   - 031-market-overview
@@ -119,3 +119,24 @@ with no data shows "No sales seen", never a zero.
 The sparkline is inline SVG rather than a charting dependency - one series, no axes; a library
 would have been a larger commitment than the feature. Thin days are drawn as smaller points, so a
 median built from one sale does not look as solid as one built from twenty.
+
+
+## Completion - 2026-08-17
+
+**Now `complete`.** Both open stories were waiting on phase-1 work that shipped today.
+
+| Story | Was | Now |
+|---|---|---|
+| 032 portfolio page | partial — value-over-time needed `collection_snapshots` | done. `ValueHistory` draws the series, and **breaks where the data breaks** rather than interpolating or drawing a zero |
+| 033 slice valuation | not built — needed `/collection`'s filters | done. `/portfolio/slice` uses **`FilterSet`**, the same definition `/collection` uses |
+
+**Story 033's warning was heeded rather than worked around.** It says a second filter implementation
+would disagree with the first, and that the disagreement surfaces as a valuation that does not match
+the item list on screen. So the slice takes the same `FilterSet` the collection table takes, and
+`test_a_full_slice_equals_the_whole_portfolio` pins the consequence: a full-collection slice equals
+`/portfolio` by construction, not by coincidence.
+
+The chart's gap handling is the other thing worth recording. A day with no value is a **gap** — the
+line stops and restarts. Interpolating invents a number, and a flat line at zero reads as "this
+collection was worth nothing", which is a different and false claim from "we could not value it".
+The card count is still drawn across that stretch, because it is real history that needed no prices.

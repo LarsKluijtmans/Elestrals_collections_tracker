@@ -3,7 +3,7 @@ id: 014-rollups-and-valuation
 unit: 004-rollups-and-valuation
 intent: 002-price-intelligence
 type: ddd-construction-bolt
-status: partial
+status: complete
 stories:
   - 016-daily-rollup-job
   - 017-outlier-exclusion
@@ -137,3 +137,28 @@ phase 1, learned again.
 A second real bug: `computed_at` comes back **naive** from both MySQL and SQLite whatever
 `DateTime(timezone=True)` suggests, so the staleness comparison raised. It would have raised in
 production too, not only under test.
+
+
+## Completion - 2026-08-17
+
+**Now `complete`.** The three open stories were all waiting on something outside this bolt, and all
+three of those things shipped today.
+
+| Story | Was | Now |
+|---|---|---|
+| 018 FX normalisation | not built — and, unusually, blocked by nothing | done. `FxService` converts with **the rate for the observation's own day**, carries a missing day forward and *marks it approximate*, and `harvest.fx` fetches once daily on beat. 17 tests |
+| 021 portfolio history and P/L | partial — needed `collection_snapshots` | done. The series comes off the snapshots; P/L covers only holdings with a cost basis and **states the proportion** |
+| 022 nightly snapshot valuation | not built — same dependency | done. `--value-snapshots` writes a value onto each day using **that day's** rollups |
+
+**The principle two stories arrived at independently.** Story 018 refuses today's FX rate for a
+year-old sale; story 022 refuses today's rollups for a past snapshot. Same reasoning, reached
+separately: *a figure about a past day is computed from that day's inputs*, or the whole history
+moves every morning and a chart shows movement that never happened.
+
+**The refusal in 021 worth keeping.** A holding with no cost basis is excluded from P/L and counted,
+never assumed to have cost zero — assuming zero reports the entire market value as profit, which is
+wrong and flattering at once. Partial coverage is the *normal* case in phase 1, so the covered
+proportion is always stated beside the figure.
+
+**And in 022:** zero holdings is genuinely zero; unpriced holdings are not. A day nothing priced
+gets `null` and the chart breaks there rather than interpolating.

@@ -14,18 +14,26 @@ Two rules run through every response here and are worth stating once:
 """
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 
 from ..config import settings
 from ..core.dependencies import (
-    current_principal, inventory_repository, price_repository, valuation_service,
+    current_principal, inventory_repository, portfolio_service, price_repository,
+    snapshot_service, valuation_service,
 )
 from ..repositories.inventory_repository import InventoryRepository
 from ..repositories.price_repository import PriceRepository
+from ..schemas import (
+    ErrorResponse, HistoryPointModel, PerformerModel, PortfolioHistoryResponse,
+    ProfitAndLossModel, SliceValuationResponse,
+)
 from ..security import Principal
+from ..services.portfolio_service import PortfolioService
+from ..services.snapshot_service import SnapshotService
 from ..services.valuation_service import ValuationService
 
 router = APIRouter(prefix="/api/v1", tags=["prices"])
@@ -196,4 +204,118 @@ def _is_stale(computed: datetime | None) -> bool:
         computed = computed.replace(tzinfo=timezone.utc)
     return (datetime.now(timezone.utc) - computed) > timedelta(
         hours=settings.price_stale_after_hours
+    )
+
+
+# --- portfolio history, P/L and slices (stories 021, 022, 033) ------------------------
+#
+# All three were `blocked` until phase 1 caught up: history needed `collection_snapshots`, and the
+# slice needed `/collection`'s filters. Both exist now, and both are *reused* rather than
+# reimplemented — story 033 is explicit that two filter implementations over one data model
+# disagree, and the disagreement reads to a collector as the valuation being broken.
+
+
+@router.get("/portfolio/history", response_model=PortfolioHistoryResponse)
+def portfolio_history(
+    days: int = Query(default=365, ge=1, le=1095),
+    currency: str = Query(default="EUR", min_length=3, max_length=3),
+    principal: Principal = Depends(current_principal),
+    items: InventoryRepository = Depends(inventory_repository),
+    snapshots: SnapshotService = Depends(snapshot_service),
+    prices: PriceRepository = Depends(price_repository),
+    portfolio_svc: PortfolioService = Depends(portfolio_service),
+) -> PortfolioHistoryResponse:
+    """Value over time, P/L, and what is carrying the collection — story 021.
+
+    The series comes straight off `collection_snapshots`, which phase 1 has been writing since
+    launch precisely so this does not start empty. Days before any price data carry a null value:
+    the chart **starts where the data starts** rather than drawing a flat line at zero back to the
+    beginning, and the counts over that stretch are still real history.
+    """
+    from datetime import date as _date, timedelta as _timedelta
+
+    since = _date.today() - _timedelta(days=days - 1)
+    rows = snapshots.history(principal.sub, since=since)
+    holdings = items.all_for_user(principal.sub)
+
+    pnl = portfolio_svc.profit_and_loss(holdings, currency=currency) if holdings else None
+    best, worst = portfolio_svc.performers(holdings, currency=currency)
+
+    return PortfolioHistoryResponse(
+        points=[
+            HistoryPointModel(
+                day=p.day, item_count=p.item_count, distinct_printings=p.distinct_printings,
+                total_value_cents=p.total_value_cents, currency=p.currency,
+                confidence=p.confidence,
+            )
+            for p in portfolio_svc.history(rows, currency=currency)
+        ],
+        prices_start_on=prices.earliest_day(),
+        profit_and_loss=ProfitAndLossModel(
+            cost_cents=pnl.cost_cents, market_cents=pnl.market_cents,
+            gain_cents=pnl.gain_cents, covered_items=pnl.covered_items,
+            uncovered_items=pnl.uncovered_items, coverage=round(pnl.coverage, 4),
+        ) if pnl else None,
+        best=[PerformerModel(**asdict(p)) for p in best],
+        worst=[PerformerModel(**asdict(p)) for p in worst],
+    )
+
+
+@router.get(
+    "/portfolio/slice",
+    response_model=SliceValuationResponse,
+    summary="Value any filter of a collection",
+    responses={400: {"model": ErrorResponse}},
+)
+def slice_valuation(
+    request: Request,
+    currency: str = Query(default="EUR", min_length=3, max_length=3),
+    principal: Principal = Depends(current_principal),
+    items: InventoryRepository = Depends(inventory_repository),
+    valuation: ValuationService = Depends(valuation_service),
+) -> SliceValuationResponse:
+    """Story 033. **The same filter implementation `/collection` uses**, deliberately.
+
+    The story says why in one sentence worth keeping: two implementations over the same data model
+    will disagree, and the disagreement surfaces as a valuation that does not match the item list
+    on screen — which reads as the valuation being broken rather than as the filters differing.
+
+    So a full-collection slice equals `/portfolio` by construction, not by coincidence.
+    """
+    from ..services.collection_filters import FilterSet, InvalidFilter
+
+    params: dict = {}
+    for name in ("set_code", "element", "rarity", "condition", "finish", "language"):
+        values = request.query_params.getlist(name)
+        if values:
+            params[name] = values
+    for name in ("is_graded", "is_for_trade"):
+        value = request.query_params.get(name)
+        if value is not None:
+            params[name] = value
+    if request.query_params.get("q"):
+        params["q"] = request.query_params["q"]
+
+    try:
+        filters = FilterSet.from_params(params)
+    except InvalidFilter as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "bad_request", "message": str(exc), "details": {}}},
+        ) from None
+
+    # `browse` with a high limit rather than a paged read: a total computed over the first page is
+    # not a total, and showing one would be worse than showing nothing.
+    holdings = items.browse(principal.sub, filters, sort="added_desc", limit=100_000)
+    result = valuation.value(holdings, currency=currency)
+
+    return SliceValuationResponse(
+        filters=filters.to_json(),
+        matching_items=len(holdings),
+        total_cents=result.total_cents,
+        currency=currency,
+        valued_items=result.valued_items,
+        unvalued_items=result.unvalued_items,
+        coverage=round(result.coverage, 4),
+        confidence=result.confidence,
     )

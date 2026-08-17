@@ -34,6 +34,7 @@ from app.models import (  # noqa: F401
     import_rejection,
     inventory_item,
     notification,
+    price_alert,
     price_daily,
     printing,
     saved_view,

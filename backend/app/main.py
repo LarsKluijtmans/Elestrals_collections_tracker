@@ -15,8 +15,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import settings
 from .controllers import (
-    account, admin_catalog, catalog, collection, events, health, import_export, inventory,
-    me, prices, sealed_and_wishlist,
+    account, admin_catalog, alerts, catalog, collection, events, health, import_export,
+    inventory, me, prices, sealed_and_wishlist,
 )
 from .core.redaction import redact
 from .core.scope_check import assert_m2m_scopes
@@ -99,5 +99,6 @@ app.include_router(collection.router)
 app.include_router(sealed_and_wishlist.router)
 app.include_router(import_export.router)
 app.include_router(account.router)
+app.include_router(alerts.router)
 app.include_router(prices.router)
 app.include_router(admin_catalog.router)

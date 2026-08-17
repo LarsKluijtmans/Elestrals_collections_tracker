@@ -20,6 +20,7 @@ import { AddFromSetPage } from "../pages/collection/AddFromSet";
 import { AddSessionProvider } from "../session/AddSessionContext";
 import { ProfilePage } from "../pages/Profile";
 import { SetDetailPage } from "../pages/SetDetail";
+import { AlertsPage } from "../pages/Alerts";
 import { PortfolioPage } from "../pages/Portfolio";
 import { PricesPage } from "../pages/Prices";
 import { SetsPage } from "../pages/Sets";
@@ -149,6 +150,9 @@ export function Gate() {
               is not downloaded by anyone else. */}
           <Route path="/prices" element={<PricesPage />} />
           <Route path="/portfolio" element={<RequireAuth><PortfolioPage /></RequireAuth>} />
+          {/* Story 034. Unblocked by bolt 009's outbox — an alert is delivered through it, so
+              a notification-api outage delays a notification rather than losing it. */}
+          <Route path="/alerts" element={<RequireAuth><AlertsPage /></RequireAuth>} />
           <Route
             path="/admin/harvest"
             element={
