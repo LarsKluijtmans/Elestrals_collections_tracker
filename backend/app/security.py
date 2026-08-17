@@ -93,7 +93,17 @@ def _unauthorized(detail: str) -> HTTPException:
 
 def verify_token(creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> Principal:
     """FastAPI dependency: validate the Bearer access token and return the `Principal`."""
-    token = creds.credentials
+    return verify_raw_token(creds.credentials)
+
+
+def verify_raw_token(token: str) -> Principal:
+    """The same validation, from a plain string rather than the `Authorization` header.
+
+    Split out for bolt 009's re-authentication: deleting an account requires a *fresh* token,
+    presented in `X-Reauth-Token` alongside the ordinary bearer. Two tokens in one request means
+    the header-bound dependency cannot check the second, and re-implementing the verification for
+    it would be how the two drift apart — one of them eventually missing an issuer check.
+    """
     try:
         kid = jwt.get_unverified_header(token).get("kid")
     except JWTError:

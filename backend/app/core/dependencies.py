@@ -30,7 +30,10 @@ from ..services.coverage_service import CoverageService
 from ..services.dashboard_service import DashboardService
 from ..services.inventory_service import InventoryService
 from ..services.import_runner import ImportRunner
+from ..services.deletion_service import DeletionService
 from ..services.import_service import ImportService
+from ..services.notification_service import NotificationService
+from ..services.public_profile_service import PublicProfileService
 from ..services.profile_service import ProfileService
 from ..services.saved_view_service import SavedViewService
 from ..services.sealed_service import SealedService
@@ -255,3 +258,23 @@ def import_service(
     row obeys the same merge-on-duplicate and completion recompute a hand-entered one does.
     Bypassing it would let an import produce a collection state the UI cannot."""
     return ImportService(db, inventory)
+
+
+# --- Account, notifications, sharing (bolt 009) ---------------------------------------
+
+def notification_service(db: Session = Depends(get_db)) -> NotificationService:
+    """No sender wired yet — the default raises on the first drain attempt.
+
+    Deliberate: a service configured without a real sender should fail loudly rather than quietly
+    mark everything sent. The outbox rows are still written, which is the half that matters, and
+    they will deliver once notification-api is reachable and a sender is passed here.
+    """
+    return NotificationService(db)
+
+
+def public_profile_service(db: Session = Depends(get_db)) -> PublicProfileService:
+    return PublicProfileService(db)
+
+
+def deletion_service(db: Session = Depends(get_db)) -> DeletionService:
+    return DeletionService(db)

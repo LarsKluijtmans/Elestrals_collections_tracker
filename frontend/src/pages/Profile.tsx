@@ -18,6 +18,8 @@ import { ApiError, fetchProfile, updateProfile } from "../api/backend";
 import type { Profile, ProfilePatch } from "../api/backend";
 import { env } from "../env";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { DangerZone } from "../components/DangerZone";
+import { ShareCard } from "../components/ShareCard";
 
 const CURRENCIES = ["EUR", "USD", "GBP"] as const;
 
@@ -244,6 +246,10 @@ export function ProfilePage() {
           </Stack>
         </CardContent>
       </Card>
+
+      <ShareCard visibility={data.collection_visibility} handle={data.handle} />
+
+      <DangerZone />
 
       <Snackbar
         open={saved}

@@ -8,8 +8,10 @@ import { authConfig } from "../authConfig";
 import { AdminCatalogPage } from "../pages/AdminCatalog";
 import { CardDetailPage } from "../pages/CardDetail";
 import { DashboardPage } from "../pages/Dashboard";
-import { NotFoundPage, Placeholder } from "../pages/Placeholder";
+import { NotFoundPage } from "../pages/Placeholder";
 import { ImportExportPage } from "../pages/ImportExport";
+import { NotificationSettingsPage } from "../pages/NotificationSettings";
+import { PublicCollectionPage } from "../pages/PublicCollection";
 import { SealedPage } from "../pages/Sealed";
 import { WishlistPage } from "../pages/Wishlist";
 import { CollectionPage } from "../pages/collection/Collection";
@@ -104,6 +106,9 @@ export function Gate() {
           <Route path="/sets" element={<SetsPage />} />
           <Route path="/sets/:code" element={<SetDetailPage />} />
           <Route path="/cards/:id" element={<CardDetailPage />} />
+          {/* A shared collection is public by construction — the API refuses anything not
+              marked public, and returns the same 404 for private and unknown alike. */}
+          <Route path="/u/:handle" element={<PublicCollectionPage />} />
 
           {/* Authenticated. */}
           <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
@@ -133,7 +138,7 @@ export function Gate() {
           <Route path="/settings/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route
             path="/settings/notifications"
-            element={<RequireAuth><Placeholder title="Notifications" bolt="bolt 009" /></RequireAuth>}
+            element={<RequireAuth><NotificationSettingsPage /></RequireAuth>}
           />
 
           {/* Operator. The API is the real guard — this only avoids showing an empty shell. */}

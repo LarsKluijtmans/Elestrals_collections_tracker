@@ -693,6 +693,129 @@ export function exportUrl(kind: "collection" | "sealed" | "wishlist", query = ""
   return `${env.backendUrl}/api/v1/export/${kind}${query ? `?request_filters=${encodeURIComponent(query)}` : ""}`;
 }
 
+// --- Account, notifications, sharing (bolt 009) ---------------------------------------
+
+export type NotificationPreferences = Record<string, string>;
+
+export type OutboxEntry = {
+  id: string;
+  event_type: string;
+  channel: string;
+  subject: string;
+  body: string;
+  status: string;
+  attempts: number;
+  last_error: string | null;
+  sent_at: string | null;
+  created_at: string;
+};
+
+export type PublicHolding = {
+  printing_id: string;
+  card_id: string;
+  name: string;
+  set_code: string;
+  collector_number: string;
+  element: string | null;
+  rarity: string;
+  finish: string;
+  condition: string;
+  quantity: number;
+};
+
+export type PublicCollection = {
+  handle: string;
+  total_items: number;
+  distinct_printings: number;
+  holdings: PublicHolding[];
+  unlisted: boolean;
+};
+
+export type DeletionRequest = {
+  id: string; status: string; execute_after: string; created_at: string;
+};
+
+export async function fetchNotificationPreferences(
+  getToken?: TokenGetter,
+): Promise<NotificationPreferences> {
+  const res = await request("/api/v1/notifications/preferences", undefined, getToken);
+  return ((await res.json()) as { preferences: NotificationPreferences }).preferences;
+}
+
+export async function setNotificationPreference(
+  eventType: string, channel: string, getToken?: TokenGetter,
+): Promise<NotificationPreferences> {
+  const res = await request(
+    "/api/v1/notifications/preferences",
+    { method: "PUT", body: JSON.stringify({ event_type: eventType, channel }) },
+    getToken,
+  );
+  return ((await res.json()) as { preferences: NotificationPreferences }).preferences;
+}
+
+export async function sendTestNotification(
+  channel: string, getToken?: TokenGetter,
+): Promise<OutboxEntry | null> {
+  const res = await request(
+    "/api/v1/notifications/test",
+    { method: "POST", body: JSON.stringify({ channel }) },
+    getToken,
+  );
+  return (await res.json()) as OutboxEntry | null;
+}
+
+export async function fetchInbox(
+  getToken?: TokenGetter,
+): Promise<{ items: OutboxEntry[]; pending: number }> {
+  const res = await request("/api/v1/notifications/inbox", undefined, getToken);
+  return (await res.json()) as { items: OutboxEntry[]; pending: number };
+}
+
+/** Public — no session. `null` for a private or unknown handle, which is the same answer. */
+export async function fetchPublicCollection(handle: string): Promise<PublicCollection | null> {
+  const res = await fetch(`${env.backendUrl}/api/v1/u/${encodeURIComponent(handle)}`);
+  if (!res.ok) return null;
+  return (await res.json()) as PublicCollection;
+}
+
+export async function fetchSharedCollection(token: string): Promise<PublicCollection | null> {
+  const res = await fetch(
+    `${env.backendUrl}/api/v1/shared${qs({ token })}`,
+  );
+  if (!res.ok) return null;
+  return (await res.json()) as PublicCollection;
+}
+
+export async function rotateShareToken(getToken?: TokenGetter): Promise<string> {
+  const res = await request("/api/v1/account/share-token", { method: "POST" }, getToken);
+  return ((await res.json()) as { share_token: string }).share_token;
+}
+
+export async function fetchDeletionRequest(
+  getToken?: TokenGetter,
+): Promise<DeletionRequest | null> {
+  const res = await request("/api/v1/account/deletion", undefined, getToken);
+  return (await res.json()) as DeletionRequest | null;
+}
+
+/** Needs a *fresh* token in `X-Reauth-Token` — a session from this morning is not proof that
+ *  the person at the keyboard is the account holder. */
+export async function requestDeletion(
+  reauthToken: string, getToken?: TokenGetter,
+): Promise<DeletionRequest> {
+  const res = await request(
+    "/api/v1/account/deletion",
+    { method: "POST", headers: { "X-Reauth-Token": reauthToken } },
+    getToken,
+  );
+  return (await res.json()) as DeletionRequest;
+}
+
+export async function cancelDeletion(getToken?: TokenGetter): Promise<DeletionRequest> {
+  const res = await request("/api/v1/account/deletion", { method: "DELETE" }, getToken);
+  return (await res.json()) as DeletionRequest;
+}
+
 /** Operator-only, so this one *does* carry the token. */
 export async function fetchCatalogHealth(getToken?: TokenGetter): Promise<CatalogHealth> {
   const res = await request("/api/v1/admin/catalog/health", undefined, getToken);

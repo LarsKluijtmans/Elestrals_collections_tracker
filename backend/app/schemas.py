@@ -655,3 +655,85 @@ class CatalogHealth(BaseModel):
     sets_below_coverage: list[SetCoverageModel]
     latest_run_id: str | None
     rejections: list[RejectionRollupModel]
+
+
+# --- account, notifications, sharing (bolt 009) ---------------------------------------
+
+
+class NotificationPreferencesResponse(BaseModel):
+    #: Every event type, defaults included — so a client never has to know them.
+    preferences: dict[str, str]
+
+
+class SetPreferenceRequest(BaseModel):
+    event_type: str
+    channel: Literal["none", "email", "inapp", "push"]
+
+
+class TestNotificationRequest(BaseModel):
+    channel: Literal["email", "inapp", "push"] = "email"
+
+
+class OutboxEntryModel(BaseModel):
+    id: str
+    event_type: str
+    channel: str
+    subject: str
+    body: str
+    status: str
+    attempts: int
+    last_error: str | None
+    sent_at: datetime | None
+    created_at: datetime
+
+
+class NotificationInboxResponse(BaseModel):
+    items: list[OutboxEntryModel]
+    pending: int
+
+
+class ShareTokenResponse(BaseModel):
+    share_token: str
+
+
+class PublicHoldingModel(BaseModel):
+    """**The entire public shape.**
+
+    Note what is absent and cannot arrive by accident: acquisition price, acquisition date,
+    currency, storage location, notes, for-trade. `PublicHolding` never had them, so no future
+    column on `inventory_items` can leak through this model.
+    """
+
+    printing_id: str
+    card_id: str
+    name: str
+    set_code: str
+    collector_number: str
+    element: str | None
+    rarity: str
+    finish: str
+    condition: str
+    quantity: int
+
+
+class PublicCollectionResponse(BaseModel):
+    handle: str
+    total_items: int
+    distinct_printings: int
+    holdings: list[PublicHoldingModel]
+    #: Reached by share token rather than handle — the page renders `noindex`.
+    unlisted: bool
+
+
+class DeletionRequestResponse(BaseModel):
+    id: str
+    status: str
+    #: Cancellable until this passes.
+    execute_after: datetime
+    created_at: datetime
+
+
+class DeletionSummaryResponse(BaseModel):
+    request_id: str
+    inventory_rows: int
+    other_rows: int
