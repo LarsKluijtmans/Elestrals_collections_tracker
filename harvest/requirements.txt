@@ -1,0 +1,32 @@
+# harvest-api — the second backend (intent 002).
+#
+# Deliberately NOT a superset of backend/requirements.txt. This service does not talk to the
+# platform's admin SDK, does not serve the SPA's user-facing API, and does not need FastAPI's
+# file handling. Keeping the lists separate is the same call as not sharing a Python package:
+# the two services share conventions, not dependencies.
+
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+python-jose[cryptography]>=3.3
+httpx>=0.27
+
+# Persistence — our own `elestrals_harvest` schema, and a read-only grant on four `elestrals`
+# tables. Own Alembic tree; neither service migrates the other's schema.
+SQLAlchemy>=2.0
+alembic>=1.13
+PyMySQL>=1.1
+
+# Out-of-band scans. One queue per source class, beat for the schedules. This is the runtime
+# phase 1's in-process APScheduler was always going to be replaced by for this work.
+celery>=5.4
+redis>=5.0
+
+# HTML parsing for the scraping connectors (ADR-004). selectolax over BeautifulSoup: it is a
+# C parser, and a deep scan parses a few hundred thousand documents a week.
+selectolax>=0.3.21
+
+# --- dev / test -------------------------------------------------------------
+pytest>=8.0
+ruff>=0.6

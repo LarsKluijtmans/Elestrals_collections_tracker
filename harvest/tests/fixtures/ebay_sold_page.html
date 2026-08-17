@@ -1,0 +1,60 @@
+<!--
+  A recorded-shape eBay completed-listings page, trimmed to the smallest document that exercises
+  every field the connector parses.
+
+  Hand-authored rather than captured from production, and that matters: the selectors it exercises
+  are the ones `ebay_sold.py` documents as UNVERIFIED. Bolt 011's opening spike replaces this file
+  with a real capture, and the drift test (story 010) is what tells you the day the real page
+  stops looking like this.
+
+  It carries no seller identity, no buyer identity and no listing history — the same rule the NFR
+  applies to what we store applies to what we commit.
+-->
+<html>
+  <body>
+    <ul class="srp-results">
+      <li class="s-item">
+        <a class="s-item__link" href="https://www.ebay.com/itm/123456789012?hash=abc">link</a>
+        <div class="s-item__title"><span role="heading">Elestrals Vipyro FE01 012/126 Holo 1st Edition NM</span></div>
+        <span class="s-item__price">$12.34</span>
+        <span class="s-item__caption--signal">Sold  12 Aug 2026</span>
+        <span class="s-item__shipping">+$4.00 shipping</span>
+        <img class="s-item__image-img" src="https://i.ebayimg.com/1.jpg" />
+        <span class="s-item__location">from United States</span>
+      </li>
+
+      <!-- Sealed product, free shipping, different currency. -->
+      <li class="s-item">
+        <a class="s-item__link" href="https://www.ebay.com/itm/223456789012">link</a>
+        <div class="s-item__title"><span role="heading">Elestrals Base Set Booster Box Factory Sealed</span></div>
+        <span class="s-item__price">£89.99</span>
+        <span class="s-item__caption--signal">Sold  3 Aug 2026</span>
+        <span class="s-item__shipping">Free postage</span>
+        <span class="s-item__location">from United Kingdom</span>
+      </li>
+
+      <!-- A price RANGE. Two prices are not one price, so this row must be dropped. -->
+      <li class="s-item">
+        <a class="s-item__link" href="https://www.ebay.com/itm/323456789012">link</a>
+        <div class="s-item__title"><span role="heading">Elestrals Vipyro FE01 012/126</span></div>
+        <span class="s-item__price">$5.00 to $20.00</span>
+        <span class="s-item__caption--signal">Sold  1 Aug 2026</span>
+      </li>
+
+      <!-- No sold date. Dropped rather than stamped with today: a wrong sale date is worse than
+           a missing sale, and a format change should collapse the accept rate loudly. -->
+      <li class="s-item">
+        <a class="s-item__link" href="https://www.ebay.com/itm/423456789012">link</a>
+        <div class="s-item__title"><span role="heading">Elestrals Aquagon FE01 045/126</span></div>
+        <span class="s-item__price">$3.50</span>
+      </li>
+
+      <!-- eBay's "Shop on eBay" promo row: no item id in the href. -->
+      <li class="s-item">
+        <a class="s-item__link" href="https://www.ebay.com/deals">Shop on eBay</a>
+        <div class="s-item__title"><span role="heading">Shop on eBay</span></div>
+        <span class="s-item__price">$20.00</span>
+      </li>
+    </ul>
+  </body>
+</html>

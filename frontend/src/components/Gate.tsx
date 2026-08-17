@@ -1,6 +1,6 @@
 import { useAuth } from "@lars-kluijtmans/react-auth";
 import { Box, Button, CircularProgress, Stack, Typography } from "@mui/material";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { registerTokenGetter } from "../api/backend";
@@ -14,10 +14,18 @@ import {
 } from "../pages/Placeholder";
 import { ProfilePage } from "../pages/Profile";
 import { SetDetailPage } from "../pages/SetDetail";
+import { PortfolioPage } from "../pages/Portfolio";
+import { PricesPage } from "../pages/Prices";
 import { SetsPage } from "../pages/Sets";
+import { useIsAdmin } from "../hooks/useIsAdmin";
 import { AppShell } from "./AppShell";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { PlatformUnavailable } from "./PlatformUnavailable";
+
+// The admin console is a SEPARATE CHUNK, requested only after the scope check passes. Hiding
+// it client-side would leave the code and every harvest-api endpoint path it calls in the bundle
+// for anyone who opens a network tab — see story 024 and `useIsAdmin`.
+const HarvestConsolePage = lazy(() => import("../pages/admin/HarvestConsole"));
 
 /** Where the visitor was heading before we sent them to the login portal. */
 const RETURN_TO_KEY = "elestrals.returnTo";
@@ -113,6 +121,24 @@ export function Gate() {
           {/* Operator. The API is the real guard — this only avoids showing an empty shell. */}
           <Route path="/admin/catalog" element={<RequireAuth><AdminCatalogPage /></RequireAuth>} />
 
+          {/* Phase 2. `/prices` is public like the catalog pages; `/portfolio` is a signed-in
+              view of the caller's own collection; `/admin/harvest` is admin-only and its bundle
+              is not downloaded by anyone else. */}
+          <Route path="/prices" element={<PricesPage />} />
+          <Route path="/portfolio" element={<RequireAuth><PortfolioPage /></RequireAuth>} />
+          <Route
+            path="/admin/harvest"
+            element={
+              <RequireAuth>
+                <RequireAdmin>
+                  <Suspense fallback={<CircularProgress />}>
+                    <HarvestConsolePage />
+                  </Suspense>
+                </RequireAdmin>
+              </RequireAuth>
+            }
+          />
+
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </ErrorBoundary>
@@ -124,6 +150,20 @@ export function Gate() {
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? <>{children}</> : <SignInRedirect />;
+}
+
+/**
+ * Gates one route behind `elestrals:admin`.
+ *
+ * **Not-found rather than forbidden**, consistent with the phase-1 rule that unauthorised access
+ * to a real resource returns 404 rather than confirming it exists. And a rendering decision
+ * only: harvest-api refuses without the scope whatever this component does, in one dependency
+ * every admin route carries. What this buys is that the chunk is never requested.
+ */
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { isAdmin, isResolved } = useIsAdmin();
+  if (!isResolved) return <CircularProgress />;
+  return isAdmin ? <>{children}</> : <NotFoundPage />;
 }
 
 function SignInRedirect() {

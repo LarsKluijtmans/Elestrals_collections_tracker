@@ -1,0 +1,15 @@
+<!--
+  What a block looks like: HTTP 200, a plausible page, and no results container.
+
+  This is the single most important fixture in the suite. A connector that reads this as "no
+  results" reports a block as a quiet market, and the pipeline then spends its next scheduled run
+  making the block worse. `parse()` must raise `SourceRefused` on it so FR-18's counter sees it.
+-->
+<html>
+  <body>
+    <div id="captcha">
+      <h1>Please verify yourself to continue</h1>
+      <p>Access to this page has been denied because we believe you are using automation tools.</p>
+    </div>
+  </body>
+</html>

@@ -37,6 +37,50 @@ GRANT ALL PRIVILEGES ON elestrals.* TO 'elestrals_app'@'%';
 
 The app never uses the platform's own `app` or root credentials.
 
+**The harvest schema and its own user** (intent 002, once):
+
+`harvest-api` is a second backend and connects as a **different MySQL user**. The split is not
+cosmetic — it is the isolation FR-13 is built on, and it is enforced by privilege rather than by
+convention, so a blocked, broken or rewritten scraper cannot reach the data the collection tracker
+serves. `harvest/tests/test_grants_mysql.py` asserts every line of this by attempting each
+forbidden read and write; run it against the real database before the first release.
+
+```sql
+CREATE DATABASE elestrals_harvest CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'elestrals_harvest'@'%' IDENTIFIED BY '<password>';
+
+-- The harvester owns its own schema outright.
+GRANT ALL PRIVILEGES ON elestrals_harvest.* TO 'elestrals_harvest'@'%';
+
+-- ...and reads exactly four catalog tables, because the matcher has to resolve titles against
+-- real printings. TABLE-level, not `elestrals.*`: a schema-wide grant would hand the harvester
+-- every user's inventory the moment somebody adds a table.
+GRANT SELECT ON elestrals.sets            TO 'elestrals_harvest'@'%';
+GRANT SELECT ON elestrals.cards           TO 'elestrals_harvest'@'%';
+GRANT SELECT ON elestrals.printings       TO 'elestrals_harvest'@'%';
+GRANT SELECT ON elestrals.sealed_products TO 'elestrals_harvest'@'%';
+
+-- The other direction is ONE table. `price_daily` is the entire contract between the services;
+-- listings, runs, match notes and rejected rows stay admin-only on the harvester's side.
+GRANT SELECT ON elestrals_harvest.price_daily TO 'elestrals_app'@'%';
+
+FLUSH PRIVILEGES;
+```
+
+Deliberately **not** granted, and worth stating so nobody adds them for convenience:
+`elestrals_harvest` gets no write on anything in `elestrals`, and no read at all on
+`inventory_items` or `user_profiles` — the harvester has no business knowing who owns what.
+`elestrals_app` gets no write on `price_daily` and no read on anything else of the harvester's.
+
+Then, once per deployment:
+
+```bash
+docker compose exec harvest-api alembic upgrade head
+```
+
+Two Alembic trees, two version tables. Neither service migrates the other's schema, and neither
+release job runs the other's migrations.
+
 **Two platform clients**, which are not interchangeable:
 
 | | Grant types | Redirect URIs | Origins | Secret lives in |

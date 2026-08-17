@@ -68,6 +68,21 @@ class InventoryRepository:
             stmt = stmt.where(InventoryItem.printing_id == printing_id)
         return list(self._db.scalars(stmt))
 
+    def all_for_user(self, user_sub: str, *, set_id: str | None = None) -> list[InventoryItem]:
+        """Every holding, unpaged. The valuation path.
+
+        Unpaged on purpose: a total computed over the first hundred rows is not a total, and
+        showing one would be worse than showing nothing. The NFR bounds this at 5,000 holdings
+        within 1.5s p95, and the cost that actually matters is the price lookup — which
+        `PriceRepository.latest_for_printings` does in one query for the whole set.
+        """
+        stmt = select(InventoryItem).where(InventoryItem.user_sub == user_sub)
+        if set_id:
+            stmt = stmt.join(Printing, Printing.id == InventoryItem.printing_id).join(
+                Card, Card.id == Printing.card_id
+            ).where(Card.set_id == set_id)
+        return list(self._db.scalars(stmt))
+
     def count_for_user(self, user_sub: str) -> int:
         return int(
             self._db.scalar(

@@ -67,6 +67,75 @@ services:
     ports:
       - "${API_DEBUG_PORT:-9520}:9000"   # local debug only; web + tunnel reach it internally
 
+  # --- The second backend (intent 002) -------------------------------------------------------
+  # harvest-api owns `elestrals_harvest` and connects as its OWN MySQL user, which holds no write
+  # grant on `elestrals`. That grant split is the isolation FR-13 is built on: a blocked, broken
+  # or rewritten scraper cannot reach the data the collection tracker serves. See
+  # `harvest/tests/test_grants_mysql.py` for the tests that prove it, and DEPLOY.md for the
+  # GRANT statements.
+  #
+  # Three roles, one image: api, worker, beat. One build, one tag, one thing to be sure of.
+  harvest-api:
+    build: ./harvest
+    image: elestrals-harvest
+    restart: unless-stopped
+    environment: &harvest-env
+      APP_NAME: elestral-vault-harvest
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      TOKEN_ISSUER: ${PLATFORM_LOGIN_API_URL:-https://auth.aangifteportal.nl}
+      LOGIN_API_URL: ${PLATFORM_LOGIN_API_URL:-https://auth.aangifteportal.nl}
+      LOGS_API_URL: ${PLATFORM_LOGS_API_URL:-https://logs-api.aangifteportal.nl}
+
+      HARVEST_DATABASE_URL: ${HARVEST_DATABASE_URL:-}
+      CATALOG_SCHEMA: ${CATALOG_SCHEMA:-elestrals}
+      HARVEST_REDIS_URL: redis://harvest-redis:6379/0
+
+      ADMIN_SCOPE: ${ADMIN_SCOPE:-elestrals:admin}
+      HARVEST_ADMIN_SUBS: ${HARVEST_ADMIN_SUBS:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://elestrals.larskluijtmans.com,http://localhost:5173,http://127.0.0.1:5173}
+
+      # ADR-004's conduct posture, in the deployment rather than only in a document.
+      HARVEST_CONTACT_EMAIL: ${HARVEST_CONTACT_EMAIL:-}
+      HARVEST_ALLOWED_HOSTS: ${HARVEST_ALLOWED_HOSTS:-www.ebay.com,api.ebay.com}
+      HARVEST_OBEY_ROBOTS: ${HARVEST_OBEY_ROBOTS:-false}
+
+      EBAY_CLIENT_ID: ${EBAY_CLIENT_ID:-}
+      EBAY_CLIENT_SECRET: ${EBAY_CLIENT_SECRET:-}
+      HARVEST_SHOPIFY_SHOPS: ${HARVEST_SHOPIFY_SHOPS:-}
+    depends_on:
+      - harvest-redis
+    ports:
+      - "${HARVEST_DEBUG_PORT:-9540}:9100"   # local debug only
+
+  harvest-worker:
+    build: ./harvest
+    image: elestrals-harvest
+    restart: unless-stopped
+    environment: *harvest-env
+    depends_on:
+      - harvest-redis
+    # `--max-tasks-per-child`: a scan is long-lived and parses a lot of HTML; recycling the
+    # process bounds any leak in a C parser rather than trusting it not to have one.
+    command: celery -A app.tasks.celery_app.celery_app worker -Q scans,maintenance
+             --loglevel=info --concurrency=2 --max-tasks-per-child=50
+
+  harvest-beat:
+    build: ./harvest
+    image: elestrals-harvest
+    restart: unless-stopped
+    environment: *harvest-env
+    depends_on:
+      - harvest-redis
+    command: celery -A app.tasks.celery_app.celery_app beat --loglevel=info
+
+  harvest-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Broker and result backend only — nothing here is a source of truth, so an empty Redis after
+    # a restart costs one missed schedule and nothing else.
+    command: redis-server --save "" --appendonly no
+    mem_limit: 128m
+
   elestrals-web:
     build: ./frontend
     image: elestrals-web
