@@ -1,12 +1,12 @@
 ---
-updated: 2026-08-17T19:00:00Z
+updated: 2026-08-17T20:00:00Z
 mode: single-file
 ---
 
 # Story Index
 
-Project-wide story tracking. **70 stories** across intents 001 and 002 — **47 implemented**, 3
-partial, 3 blocked, 17 not built. Full breakdown under [Counts](#counts).
+Project-wide story tracking. **108 stories** across intents 001, 002 and 004 — **47 implemented**, 3
+partial, 3 blocked, 55 not built. Full breakdown under [Counts](#counts).
 
 **This file was wrong until 2026-08-17, and it is worth knowing how.** It recorded intent 001's 36
 stories as `planned` while four of its bolts had shipped, been tested and been verified against real
@@ -28,8 +28,11 @@ Intent 001's phase-1 work is what those four wait on: bolts 001–005 are built 
 `partial`, 004 `complete`), and bolts 006–009 have not been started.
 
 Intent 003 remains decomposed to unit level only; its stories are enumerated in its `units.md`.
-**Intent 004 (card scanning)** was created on 2026-08-17 and is blocked at inception Checkpoint 1 on
-four unanswered questions — no units, no stories, nothing to index yet.
+
+**Intent 004 (card scanning)** was created and fully elaborated on 2026-08-17 — 22 requirements, 7
+units, 38 stories, 7 bolts, numbered 018–024. Nothing is built. It is the largest intent in the
+project and it adds a **third backend** (`scan-api`) and a **mobile app**, neither of which existed
+before.
 
 ## Status vocabulary
 
@@ -184,6 +187,70 @@ Every story has its own file at `units/{unit}/stories/{SSS}-{title-slug}.md`, as
 `.specsmd/aidlc/scripts/artifact-validator.cjs` requires — each bolt's `stories:` array is a
 cross-reference the validator resolves against these filenames.
 
+## Intent 004 — card-scanning
+
+Elaborated 2026-08-17. Bolt numbering continues the global sequence from intent 002. **Nothing built.**
+
+| Story | Unit | Bolt | Priority | Status |
+|---|---|---|---|---|
+| 001-compile-pilot-set | 001-pilot-catalog | 018 | must | not built |
+| 002-photograph-reference-set | 001-pilot-catalog | 018 | must | not built |
+| 003-held-out-evaluation-set | 001-pilot-catalog | 018 | must | not built |
+| **004-ocr-feasibility-spike** | 001-pilot-catalog | 018 | must | not built |
+| 005-scan-api-skeleton | 002-scan-service | 019 | must | not built |
+| **006-scan-schema-and-grants** | 002-scan-service | 019 | must | not built |
+| 007-capture-store | 002-scan-service | 019 | must | not built |
+| **008-capture-upload-endpoint** | 002-scan-service | 019 | must | not built |
+| 009-reference-corpus-and-fingerprints | 002-scan-service | 019 | must | not built |
+| 010-seeded-images-bounded | 002-scan-service | 019 | should | not built |
+| 011-catalog-index-for-devices | 003-identification-engine | 020 | must | not built |
+| **012-on-device-text-pass** | 003-identification-engine | 020 | must | not built |
+| **013-identification-ladder** | 003-identification-engine | 020 | must | not built |
+| 014-server-image-match | 003-identification-engine | 020 | must | not built |
+| **015-calibrated-confidence** | 003-identification-engine | 020 | must | not built |
+| 016-honest-failure-taxonomy | 003-identification-engine | 020 | must | not built |
+| 017-dataset-versioning | 004-evaluation-and-dataset | 021 | must | not built |
+| **018-holdout-split** | 004-evaluation-and-dataset | 021 | must | not built |
+| **019-accuracy-harness** | 004-evaluation-and-dataset | 021 | must | not built |
+| 020-release-gate-on-harness | 004-evaluation-and-dataset | 021 | must | not built |
+| **021-curation-queue** | 005-curation-console | 022 | must | not built |
+| 022-promote-approved-image | 005-curation-console | 022 | must | not built |
+| **023-published-image-projection** | 005-curation-console | 022 | must | not built |
+| 024-consent-capture | 005-curation-console | 022 | must | not built |
+| **025-withdrawal-and-takedown** | 005-curation-console | 022 | must | not built |
+| 026-rejection-analytics | 005-curation-console | 022 | should | not built |
+| 027-expo-app-shell | 006-mobile-app | 023 | must | not built |
+| **028-native-pkce-sign-in** | 006-mobile-app | 023 | must | not built |
+| 029-mobile-collection-browse | 006-mobile-app | 023 | must | **blocked** |
+| 030-mobile-card-detail-and-completion | 006-mobile-app | 023 | must | not built |
+| 031-offline-collection-cache | 006-mobile-app | 023 | should | not built |
+| 032-android-build-and-ota | 006-mobile-app | 023 | must | not built |
+| 033-capture-and-crop | 007-scan-experience | 024 | must | not built |
+| **034-confirm-printing** | 007-scan-experience | 024 | must | not built |
+| **035-scan-add-to-collection** | 007-scan-experience | 024 | must | not built |
+| 036-open-card-from-scan | 007-scan-experience | 024 | must | not built |
+| **037-batch-scan-session** | 007-scan-experience | 024 | should | not built |
+| 038-web-camera-entry-mode | 007-scan-experience | 024 | must | not built |
+
+### Already blocked before it starts
+
+| Story | Waiting for | Which is |
+|---|---|---|
+| 029-mobile-collection-browse | `/collection` and its filters | intent 001 bolt 006 — the **same** unbuilt bolt that blocks intent 002's `033-slice-valuation`. Stories 030 and 031 follow it |
+
+Intent 001's bolt 006 now blocks work in two later intents. Together with `collection_snapshots`, it
+is the project's other high-leverage gap.
+
+**Bold** marks the fourteen carrying the most risk in intent 004 — the go/no-go spike, the grant
+boundary and the upload surface, the ladder and the on-device pass it rests on, the calibration that
+makes every displayed percentage honest and the split and harness that produce it, the projection that
+keeps unapproved images unreachable, the withdrawal path someone upset will exercise, native sign-in,
+and the four stories the collector actually touches.
+
+Every story has its own file at `units/{unit}/stories/{SSS}-{title-slug}.md`, as
+`.specsmd/aidlc/scripts/artifact-validator.cjs` requires — each bolt's `stories:` array is a
+cross-reference the validator resolves against these filenames.
+
 ## Counts
 
 By priority:
@@ -192,7 +259,8 @@ By priority:
 |---|---|---|---|---|
 | Intent 001 | 26 | 9 | 1 | **36** |
 | Intent 002 | 32 | 2 | 0 | **34** |
-| **Total** | **58** | **11** | **1** | **70** |
+| Intent 004 | 34 | 4 | 0 | **38** |
+| **Total** | **92** | **15** | **1** | **108** |
 
 By state, as of 2026-08-17:
 
@@ -200,14 +268,17 @@ By state, as of 2026-08-17:
 |---|---|---|---|---|---|
 | Intent 001 | 20 | 0 | 0 | 16 | **36** |
 | Intent 002 | 27 | 3 | 3 | 1 | **34** |
-| **Total** | **47** | **3** | **3** | **17** | **70** |
+| Intent 004 | 0 | 0 | 1 | 37 | **38** |
+| **Total** | **47** | **3** | **4** | **54** | **108** |
 
-**67% implemented.** Both remaining clusters are phase-1: intent 001's bolts 006–009, and the three
-phase-2 stories that wait on them.
+**44% implemented**, down from 67% — because intent 004 added 38 unbuilt stories in a single day, not
+because anything regressed. The built total is unchanged at 47.
+
+The remaining work is now two clusters rather than one: intent 001's bolts 006–009 with the phase-2
+stories waiting on them, and the whole of intent 004.
 
 ## Intents not yet decomposed to stories
 
 | Intent | Units | Stories | Status |
 |---|---|---|---|
 | 003-marketplace | 6 | 21 (enumerated in `units.md`) | outline only — commercial model undecided |
-| 004-card-scanning | — | — | inception, blocked at Checkpoint 1 on four unanswered questions. Requirements drafted (490 lines); no system context, units, stories or bolt plan |

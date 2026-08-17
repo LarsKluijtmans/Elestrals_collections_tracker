@@ -4,6 +4,10 @@ pydantic>=2.7
 pydantic-settings>=2.3
 python-jose[cryptography]>=3.3
 httpx>=0.27
+# Multipart uploads. FastAPI needs it for `UploadFile`, which bolt 008's CSV import uses — and it
+# raises at *import* time, not on the first request, so a missing wheel breaks the whole service
+# rather than one endpoint.
+python-multipart>=0.0.9
 
 # Persistence — our own `elestrals` database on the platform's MySQL.
 SQLAlchemy>=2.0

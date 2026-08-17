@@ -7,14 +7,14 @@ import { useCallback, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   adjustInventory, bulkDelete, bulkEdit, countSelection, createSavedView,
-  deleteSavedView, fetchCollection, fetchSavedViews,
+  deleteSavedView, exportUrl, fetchCollection, fetchSavedViews,
   type BulkResult, type CollectionRow, type SavedView,
 } from "../../api/backend";
 import { BulkBar } from "../../collection/BulkBar";
 import { CollectionTable } from "../../collection/CollectionTable";
 import { FilterRail, type Vocabulary } from "../../collection/FilterRail";
 import {
-  describeFilters, parseFilters, SORT_LABELS, toSearchParams,
+  activeFilterCount, describeFilters, parseFilters, SORT_LABELS, toSearchParams,
   type Density, type Filters, type Sort,
 } from "../../collection/filters";
 import { toCsv, downloadCsv } from "../../collection/csv";
@@ -183,6 +183,12 @@ export function CollectionPage() {
         <Typography variant="h1" sx={{ fontSize: 25, fontWeight: 650 }}>Collection</Typography>
         <Button component={Link} to="/collection/add" variant="contained" size="small">
           Add cards
+        </Button>
+        {/* Story 027: the export honours the active filter, so "export what I am looking at" is
+            one action. The query string is passed through verbatim rather than translated —
+            one encoding, so the link in the address bar and the file describe the same rows. */}
+        <Button size="small" href={exportUrl("collection", query)}>
+          Export {activeFilterCount(filters) > 0 ? "these" : "all"}
         </Button>
 
         <TextField

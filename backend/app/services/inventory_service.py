@@ -16,6 +16,8 @@ Graded copies carry `merge_condition = NULL`, which never conflicts, so each is 
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
@@ -123,6 +125,29 @@ class InventoryService:
         self._items = items
         self._printings = printings
         self._completion = completion
+        #: Depth of `atomic()` nesting. Non-zero means somebody outside owns the transaction.
+        self._deferred = 0
+
+    @contextmanager
+    def atomic(self) -> Iterator[None]:
+        """Suspend this service's per-write commits so a caller can own the transaction.
+
+        Every write here normally commits itself, together with its completion recompute — that
+        pairing is deliberate and is why completion can never disagree with inventory. But a bulk
+        *import* needs a wider boundary: story 029 requires that one bad row on line 900 leaves
+        nothing written at all, and a service that commits after each row cannot offer that.
+
+        Without this, `commit()` on the import path rolled back only the uncommitted tail, and 899
+        rows stayed. The tests said 2 == 0 and they were right.
+
+        Recomputes still run per write, so the projection is correct at the point of commit; it is
+        only the *commit* that waits.
+        """
+        self._deferred += 1
+        try:
+            yield
+        finally:
+            self._deferred -= 1
 
     # --- add -------------------------------------------------------------------------
 
@@ -314,9 +339,16 @@ class InventoryService:
 
     def _recompute(self, user_sub: str, printing_ids: list[str]) -> None:
         """Same transaction as the write. A failure here rolls the write back with it, which is
-        the whole reason completion can never disagree with inventory."""
+        the whole reason completion can never disagree with inventory.
+
+        Under `atomic()` the commit is the caller's to make — the recompute still runs, so the
+        projection is right at the moment the caller commits, but nothing is durable until then.
+        """
         set_ids = self._items.set_ids_touched_by(printing_ids)
         self._completion.recompute(user_sub, set_ids)
+        if self._deferred:
+            self._items.flush()
+            return
         self._items.commit()
 
     @staticmethod

@@ -30,6 +30,7 @@ from ..services.coverage_service import CoverageService
 from ..services.dashboard_service import DashboardService
 from ..services.inventory_service import InventoryService
 from ..services.import_runner import ImportRunner
+from ..services.import_service import ImportService
 from ..services.profile_service import ProfileService
 from ..services.saved_view_service import SavedViewService
 from ..services.sealed_service import SealedService
@@ -242,3 +243,15 @@ def sealed_service(db: Session = Depends(get_db)) -> SealedService:
 
 def wishlist_service(db: Session = Depends(get_db)) -> WishlistService:
     return WishlistService(db)
+
+
+# --- Import / export (bolt 008) -------------------------------------------------------
+
+def import_service(
+    db: Session = Depends(get_db),
+    inventory: InventoryService = Depends(inventory_service),
+) -> ImportService:
+    """The commit writes through `InventoryService`, never the repository — so an imported
+    row obeys the same merge-on-duplicate and completion recompute a hand-entered one does.
+    Bypassing it would let an import produce a collection state the UI cannot."""
+    return ImportService(db, inventory)

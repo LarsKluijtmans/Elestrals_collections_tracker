@@ -29,6 +29,7 @@ from app.models import (  # noqa: F401
     card,
     catalog_import,
     collection_snapshot,
+    import_job,
     import_rejection,
     inventory_item,
     price_daily,

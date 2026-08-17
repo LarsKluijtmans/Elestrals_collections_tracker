@@ -589,6 +589,66 @@ class PatchWishRequest(BaseModel):
     notes: str | None = Field(default=None, max_length=512)
 
 
+# --- import / export (bolt 008) -------------------------------------------------------
+
+
+class ImportRowModel(BaseModel):
+    id: str
+    #: 1-based as the spreadsheet shows it, so "row 900" names a row the user can find.
+    line_number: int
+    verdict: Literal["add", "update", "needs_confirmation", "rejected"]
+    match_rung: str
+    match_score: float | None
+    printing_id: str | None
+    quantity: int | None
+    condition: str | None
+    #: In words the uploader can act on — "no card BS1-999 in set FE01", never a bare code.
+    reason: str | None
+    confirmed: bool
+    #: The cells as parsed, so the diff can show what was actually in the file.
+    raw: dict[str, Any]
+
+
+class ImportJobResponse(BaseModel):
+    id: str
+    filename: str
+    status: str
+    #: Reported so a mangled preview has a diagnosable cause. "We read this as CP1252" is a
+    #: fixable complaint; "it looks wrong" is not.
+    encoding: str
+    delimiter: str
+    mapping: dict[str, Any]
+    total_rows: int
+    add_count: int
+    update_count: int
+    #: Fuzzy matches. **Not applied** until confirmed individually.
+    needs_confirmation_count: int
+    rejected_count: int
+    error_summary: str | None
+    #: Rejections and unconfirmed matches first — they are what needs acting on.
+    rows: list[ImportRowModel]
+    rows_truncated: bool
+    created_at: datetime
+
+
+class ImportMappingRequest(BaseModel):
+    #: `{our_field: their_header}`.
+    mapping: dict[str, str]
+
+
+class ImportConfirmRequest(BaseModel):
+    #: Ids of rows the user actually ticked. Deliberately not a "confirm all" flag.
+    row_ids: list[str] = Field(max_length=20_000)
+
+
+class CommitResultResponse(BaseModel):
+    added: int
+    updated: int
+    #: Rejected rows, plus fuzzy matches left unconfirmed. Counted so the summary adds up.
+    skipped: int
+    rows: int
+
+
 class CatalogHealth(BaseModel):
     sources: list[SourceHealth]
     #: Sets whose imported count is short of the declared printed size.

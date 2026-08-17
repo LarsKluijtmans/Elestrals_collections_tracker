@@ -592,6 +592,107 @@ export async function deleteWish(itemId: string, getToken?: TokenGetter): Promis
   await request(`/api/v1/wishlist/${encodeURIComponent(itemId)}`, { method: "DELETE" }, getToken);
 }
 
+// --- Import / export (bolt 008) -------------------------------------------------------
+
+export type ImportRow = {
+  id: string;
+  line_number: number;
+  verdict: "add" | "update" | "needs_confirmation" | "rejected";
+  match_rung: string;
+  match_score: number | null;
+  printing_id: string | null;
+  quantity: number | null;
+  condition: string | null;
+  reason: string | null;
+  confirmed: boolean;
+  raw: Record<string, string>;
+};
+
+export type ImportJob = {
+  id: string;
+  filename: string;
+  status: string;
+  encoding: string;
+  delimiter: string;
+  mapping: Record<string, string>;
+  total_rows: number;
+  add_count: number;
+  update_count: number;
+  needs_confirmation_count: number;
+  rejected_count: number;
+  error_summary: string | null;
+  rows: ImportRow[];
+  rows_truncated: boolean;
+  created_at: string;
+};
+
+export type CommitResult = {
+  added: number; updated: number; skipped: number; rows: number;
+};
+
+export async function startImport(file: File, getToken?: TokenGetter): Promise<ImportJob> {
+  const body = new FormData();
+  body.append("file", file);
+  const token = await (getToken ?? (async () => null))();
+  // No `Content-Type` header: the browser sets it, and it must include the multipart boundary
+  // it generated. Setting it by hand is how a multipart upload becomes an unparseable body.
+  const res = await fetch(`${env.backendUrl}/api/v1/import`, {
+    method: "POST",
+    body,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const problem = await res.json().catch(() => null);
+    throw new ApiError(
+      res.status,
+      problem?.error?.code ?? "error",
+      problem?.error?.message ?? `POST /api/v1/import → ${res.status}`,
+    );
+  }
+  return (await res.json()) as ImportJob;
+}
+
+export async function fetchImportJob(id: string, getToken?: TokenGetter): Promise<ImportJob> {
+  const res = await request(`/api/v1/import/${encodeURIComponent(id)}`, undefined, getToken);
+  return (await res.json()) as ImportJob;
+}
+
+export async function remapImport(
+  id: string, mapping: Record<string, string>, getToken?: TokenGetter,
+): Promise<ImportJob> {
+  const res = await request(
+    `/api/v1/import/${encodeURIComponent(id)}/mapping`,
+    { method: "PUT", body: JSON.stringify({ mapping }) },
+    getToken,
+  );
+  return (await res.json()) as ImportJob;
+}
+
+export async function confirmImportRows(
+  id: string, rowIds: string[], getToken?: TokenGetter,
+): Promise<ImportJob> {
+  const res = await request(
+    `/api/v1/import/${encodeURIComponent(id)}/confirm`,
+    { method: "POST", body: JSON.stringify({ row_ids: rowIds }) },
+    getToken,
+  );
+  return (await res.json()) as ImportJob;
+}
+
+export async function commitImport(
+  id: string, getToken?: TokenGetter,
+): Promise<CommitResult> {
+  const res = await request(
+    `/api/v1/import/${encodeURIComponent(id)}/commit`, { method: "POST" }, getToken,
+  );
+  return (await res.json()) as CommitResult;
+}
+
+/** Export URLs are plain links so the browser downloads them — no blob, no memory. */
+export function exportUrl(kind: "collection" | "sealed" | "wishlist", query = ""): string {
+  return `${env.backendUrl}/api/v1/export/${kind}${query ? `?request_filters=${encodeURIComponent(query)}` : ""}`;
+}
+
 /** Operator-only, so this one *does* carry the token. */
 export async function fetchCatalogHealth(getToken?: TokenGetter): Promise<CatalogHealth> {
   const res = await request("/api/v1/admin/catalog/health", undefined, getToken);

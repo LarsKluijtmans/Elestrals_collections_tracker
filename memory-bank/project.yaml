@@ -27,13 +27,14 @@ intents:
   - id: 002-price-intelligence
     phase: 2
     status: construction
-  - id: 003-marketplace
-    phase: 3
-    status: outline
-  # Created 2026-08-17 and blocked at inception Checkpoint 1 on four unanswered questions.
-  # It was absent from this list for a day: neither `status-integrity.cjs` nor
-  # `artifact-validator.cjs` walks an intent that has no bolts yet, so nothing was going to
-  # notice. `phase` is deliberately null — shipping order is undecided against `003`.
   - id: 004-card-scanning
-    phase: null
-    status: inception
+    phase: 3
+    status: inception-complete
+    # Adds a third backend (scan-api, schema elestrals_scan) and the project's first
+    # mobile client (Expo / React Native). Both are new to the stack.
+  - id: 003-marketplace
+    phase: 4
+    status: outline
+    # Moved from phase 3 to phase 4 on 2026-08-17. Not a demotion: 003 is blocked on an
+    # undecided commercial model and cannot start, while 004 is elaborated and can.
+    # Folder numbers are allocation order; `phase` is shipping order.
