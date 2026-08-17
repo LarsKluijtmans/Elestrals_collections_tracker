@@ -5,13 +5,17 @@ mode: single-file
 
 # Story Index
 
-Project-wide story tracking. **108 stories** across intents 001, 002 and 004 — **68 implemented**,
-1 partial, 1 blocked, 38 not built. Full breakdown under [Counts](#counts).
+Project-wide story tracking. **108 stories** across intents 001, 002 and 004 — **69 implemented**,
+1 blocked, 38 not built. Full breakdown under [Counts](#counts).
 
-**Intents 001 and 002 are done bar two stories.** Bolts 006–009 were built on 2026-08-17, which
-unblocked the four phase-2 stories that had been waiting on them, and story 018 (which had been
-waiting on nothing) was built at the same time. What remains of the first two intents is story 031
-(avatar upload) and story 010 (connector drift detection). Everything else outstanding is intent 004.
+**Intent 002 is complete. Intent 001 is done bar one story.** Bolts 006–009 were built on
+2026-08-17, which unblocked the four phase-2 stories waiting on them; stories 018 and 010 — neither
+of which was ever actually blocked — were built at the same time.
+
+The single story left in the first two intents is **031 avatar upload**, and it is blocked on a
+platform RBAC change rather than on effort: the M2M service account holds `openid` and nothing else.
+The deploy on 2026-08-17 asked the platform directly and got the answer. Everything else outstanding
+is intent 004.
 
 **This file was wrong until 2026-08-17, and it is worth knowing how.** It recorded intent 001's 36
 stories as `planned` while four of its bolts had shipped, been tested and been verified against real
@@ -147,7 +151,7 @@ Elaborated 2026-08-15. Bolt numbering continues the global sequence from intent 
 | 007-source-connector-contract | 002-scrapers | 011 | must | implemented |
 | **008-deep-scan** | 002-scrapers | 011 | must | implemented |
 | 009-light-scan | 002-scrapers | 011 | must | implemented |
-| 010-connector-fixtures-and-drift-detection | 002-scrapers | 011 | must | partial |
+| 010-connector-fixtures-and-drift-detection | 002-scrapers | 011 | must | implemented |
 | **011-block-detection-and-quarantine** | 002-scrapers | 011 | must | implemented |
 | **012-title-to-printing-matcher** | 003-matching-and-observations | 012 | must | implemented |
 | 013-condition-extraction | 003-matching-and-observations | 012 | must | implemented |
@@ -186,7 +190,7 @@ table is kept because the dependency chain is the interesting part, not the outc
 | 033-slice-valuation | `/collection`'s filters | bolt 006 shipped `FilterSet`, and the slice reuses it — a full slice equals `/portfolio` by construction |
 | 034-price-alerts | the notification outbox | bolt 009 shipped it. The alert is an ordinary `enqueue` on the same queue everything else uses |
 | 018-fx-normalisation | **nothing** | it had never been blocked; the fetch job and conversion path had simply not been written. Built alongside the rest |
-| 010-connector-fixtures-and-drift-detection | nothing external | **still open.** Fixtures exist; the check that compares a live parse against them does not |
+| 010-connector-fixtures-and-drift-detection | nothing external | **built 2026-08-17.** `harvest/app/harvest/drift.py` plus a daily beat task. The fixtures already existed; what was missing was the check that a live parse still yields what they do |
 
 **`collection_snapshots` was the single highest-leverage missing thing in the project** — one table
 unblocking three stories — and it is worth remembering why it was missing. It was designed a year
@@ -288,22 +292,19 @@ By state, end of 2026-08-17:
 | | Implemented | Partial | Blocked | Not built | Total |
 |---|---|---|---|---|---|
 | Intent 001 | 35 | 0 | 0 | 1 | **36** |
-| Intent 002 | 33 | 1 | 0 | 0 | **34** |
+| Intent 002 | **34** | 0 | 0 | 0 | **34** |
 | Intent 004 | 0 | 0 | 1 | 37 | **38** |
-| **Total** | **68** | **1** | **1** | **38** | **108** |
+| **Total** | **69** | **0** | **1** | **38** | **108** |
 
-**63% implemented**, and the shape of what is left changed completely in one day: intents 001 and 002
-went from 47 built of 70 to **68 of 70**, and every remaining `blocked` story is in intent 004.
+**64% implemented**, and the shape of what is left changed completely in one day: intents 001 and
+002 went from 47 built of 70 to **69 of 70**. **Intent 002 is complete.**
 
-Two stories outstanding in the first two intents, and both are genuinely blocked on something
-external rather than on effort:
-
-* **031 avatar upload** needs storage-api reachable and a browser-to-storage upload with the *user's
-  own* token. Same gate as `ENABLE_ENRICHMENT`, `ENABLE_PROJECT_LOGGING` and
-  `ENABLE_USAGE_METERING` — all still off because the M2M service account does not hold the seven
-  scopes. That is bolt 001's open item and it blocks more than one thing.
-* **010 connector drift detection** — the fixtures exist; the check that compares a live parse
-  against them does not.
+One story outstanding in the first two intents, and it is blocked on something external rather than
+on effort: **031 avatar upload** needs storage-api reachable and a browser-to-storage upload with
+the *user's own* token. Same gate as `ENABLE_ENRICHMENT`, `ENABLE_PROJECT_LOGGING` and
+`ENABLE_USAGE_METERING` — the M2M service account holds **`openid` and nothing else**, confirmed by
+asking the platform during the 2026-08-17 deploy. That is bolt 001's open item and it blocks four
+separate things.
 
 The rest of the work is intent 004 in its entirety.
 

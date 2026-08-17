@@ -39,6 +39,7 @@ celery_app.conf.update(
         "harvest.sweep": {"queue": "maintenance"},
         "harvest.probe": {"queue": "maintenance"},
         "harvest.fx": {"queue": "maintenance"},
+        "harvest.drift": {"queue": "maintenance"},
     },
     timezone="UTC",
     enable_utc=True,
@@ -74,6 +75,12 @@ celery_app.conf.beat_schedule = {
     # provider outage degrades tomorrow's precision rather than today's availability.
     "fx-rates": {
         "task": "harvest.fx",
+        "schedule": schedule(run_every=86_400),
+    },
+    # Story 010. Daily, and deliberately NOT in CI: a connector breaking is silent by nature, so
+    # something has to go and look — but a third party being down must not fail a pull request.
+    "drift-check": {
+        "task": "harvest.drift",
         "schedule": schedule(run_every=86_400),
     },
 }

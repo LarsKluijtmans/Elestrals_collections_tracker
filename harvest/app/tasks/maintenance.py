@@ -100,3 +100,57 @@ def _probe_one(*, source_key: str) -> dict:
         return {"source": source_key, "status": run.status}
     finally:
         db.close()
+
+
+@celery_app.task(name="harvest.drift")
+def drift_check() -> dict:
+    """Story 010's scheduled half. **Reports; never fails a build.**
+
+    A connector breaking is silent by nature — zero rows looks exactly like a quiet market — so
+    something has to go and look on purpose. This is that something, and it runs on a schedule
+    rather than in CI because a third party being down must not fail a pull request.
+
+    Only `drifted` and `unparseable` are logged at `error`. `empty`, `blocked` and `unreachable`
+    are real states of the world that need no code change, and reporting them as drift is how the
+    alert that matters gets ignored during the next outage.
+    """
+    from ..harvest.drift import check_source
+    from ..harvest.sources import available_sources, describe_source, new_source
+    from ..services.harvest_runner import default_client_factory
+
+    reports = []
+    db = SessionLocal()
+    try:
+        rows = {row.key: row for row in PriceSourceRepository(db).list_all() if row.enabled}
+    finally:
+        db.close()
+
+    for key in available_sources():
+        row = rows.get(key)
+        if row is None:
+            # A disabled source is not drifting, it is switched off. Checking it would make a
+            # request ADR-004's gate exists to prevent, and report a policy decision as a bug.
+            continue
+        descriptor = describe_source(key)
+        source = new_source(key)
+        # Through the SAME client factory a real scan uses — its own rate limit, its own user
+        # agent with the contact address, its own host pinning. A drift check that bypassed the
+        # polite client would be an unrated request against a source we have promised to be
+        # careful with, made once a day, forever.
+        source.bind(default_client_factory(descriptor, row))
+        report = check_source(source, reports_sold=descriptor.reports_sold)
+        reports.append(report.as_dict())
+
+        log_event(
+            "error" if report.verdict.is_our_problem else "info",
+            f"drift check: {report}",
+            component="drift", operation="check",
+            context=report.as_dict(),
+        )
+
+    if not reports:
+        log_event(
+            "info", "drift check: no enabled sources to check",
+            component="drift", operation="check",
+        )
+    return {"checked": len(reports), "reports": reports}

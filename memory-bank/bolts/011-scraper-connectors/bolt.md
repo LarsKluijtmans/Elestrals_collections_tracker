@@ -144,3 +144,44 @@ captured - it proves the parser does what we think, not that the page looks like
 scraped pipeline dangerous - the scan reports success, the accept rate looks fine because nothing
 was parsed, and the next run walks back into the block.
 `test_a_challenge_page_is_a_refusal_not_an_empty_market` pins it.
+
+
+## Story 010 closed - 2026-08-17
+
+The last `partial` in intent 002. The fixtures had existed since this bolt was built; what was
+missing was the check that a *live* parse still yields what they do.
+
+`harvest/app/harvest/drift.py`, plus a daily beat task. Nineteen tests, none of which touch a
+network.
+
+**The distinction the story is entirely about**, and the reason it was worth building rather than
+leaving:
+
+    parsed fine, nothing matched   ≠   could not parse
+
+Both produce zero rows. One is a fact about the market; the other is our parser broken while
+reporting "no sales seen" for months. Under ADR-004 a connector *will* break — sites change markup
+without notice — and the failure mode is silence, which is the one failure this whole intent is
+arranged to avoid.
+
+Two more states share that zero-row shape and get their own verdicts: a **challenge page** is a
+block and belongs to story 011's quarantine, not to a selector; an **unreachable source** is a third
+party being down and says nothing about our markup. Reporting either as drift is how the alert that
+matters gets ignored during the next outage.
+
+A failure **names which field stopped being found** — "title missing on 60/60" points at a selector;
+"0 results" points at nothing. And a field missing on *some* rows is data, not drift: eBay omits a
+location on plenty of listings, and only a total absence means a selector stopped matching.
+
+Two traps worth recording, both caught while writing the tests: `price_cents=0` is a free listing
+and `is_sold=False` is a real answer, so presence is `is not None` rather than truthiness. A `bool()`
+check would report two working selectors as broken.
+
+**Scheduled, not in CI** — story 010's fifth criterion. A third party being down must not fail a
+pull request. It also runs through the *same* `default_client_factory` a real scan uses, so the
+daily check carries the rate limit, the contact address and the host pinning ADR-004 requires; a
+drift check that bypassed the polite client would be an unrated daily request against a source we
+have promised to be careful with.
+
+Verified in the deployed container: with both sources disabled it makes **zero requests** and says
+so. A disabled source is switched off, not drifting.
